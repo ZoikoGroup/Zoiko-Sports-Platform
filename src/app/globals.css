@@ -1,0 +1,267 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------- Brand tokens (from the Zoiko Sports logo) ---------- */
+:root {
+  --brand-blue: #3a7fb8;
+  --brand-blue-deep: #2a6597;
+  --brand-yellow: #fdcf22;
+  --brand-navy: #25163a;
+
+  /* neumorphic surface — light */
+  --bg: #e6ecf4;
+  --surface: #e6ecf4;
+  --sh-dark: #bfc9d8;
+  --sh-light: #ffffff;
+  --ink: #25163a;
+  --muted: #6c7493;
+  --line: #d4dbe6;
+  --primary: var(--brand-blue);
+  --accent: var(--brand-yellow);
+  --success: #1fae6b;
+  --danger: #e5484d;
+}
+
+.dark {
+  --bg: #1d1530;
+  --surface: #1f1734;
+  --sh-dark: #120c1f;
+  --sh-light: #2b2045;
+  --ink: #efeaf9;
+  --muted: #9d94b8;
+  --line: #2e2447;
+  --primary: #4f95d0;
+  --accent: #fdcf22;
+  --success: #34d399;
+  --danger: #ff6b6f;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-primary: var(--primary);
+  --color-accent: var(--accent);
+  --color-navy: var(--brand-navy);
+  --color-blue: var(--brand-blue);
+  --color-blue-deep: var(--brand-blue-deep);
+  --color-yellow: var(--brand-yellow);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-jakarta);
+  --font-display: var(--font-outfit);
+}
+
+html {
+  color-scheme: light;
+}
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-jakarta), system-ui, sans-serif;
+  transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+/* theme switch: circular reveal driven from ThemeProvider */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+/* brand-coloured keyboard focus instead of the browser's white outline */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: var(--brand-yellow);
+  color: var(--brand-navy);
+}
+
+/* thin themed scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sh-dark) transparent;
+}
+
+/* ---------- Neumorphism ---------- */
+@utility neu {
+  background: var(--surface);
+  box-shadow: 9px 9px 18px var(--sh-dark), -9px -9px 18px var(--sh-light);
+}
+@utility neu-sm {
+  background: var(--surface);
+  box-shadow: 4px 4px 9px var(--sh-dark), -4px -4px 9px var(--sh-light);
+}
+@utility neu-inset {
+  background: var(--surface);
+  box-shadow: inset 5px 5px 10px var(--sh-dark), inset -5px -5px 10px var(--sh-light);
+}
+@utility neu-inset-sm {
+  background: var(--surface);
+  box-shadow: inset 3px 3px 6px var(--sh-dark), inset -3px -3px 6px var(--sh-light);
+}
+
+/* raised element that lifts on hover and presses in on click */
+@utility neu-btn {
+  background: var(--surface);
+  box-shadow: 4px 4px 9px var(--sh-dark), -4px -4px 9px var(--sh-light);
+  transition: box-shadow 0.25s ease, transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease;
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 7px 7px 14px var(--sh-dark), -7px -7px 14px var(--sh-light);
+    color: var(--primary);
+  }
+  &:active {
+    transform: translateY(0) scale(0.97);
+    box-shadow: inset 4px 4px 8px var(--sh-dark), inset -4px -4px 8px var(--sh-light);
+  }
+}
+
+/* card that floats up on hover */
+@utility neu-card {
+  background: var(--surface);
+  box-shadow: 9px 9px 18px var(--sh-dark), -9px -9px 18px var(--sh-light);
+  transition: box-shadow 0.35s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 14px 14px 28px var(--sh-dark), -10px -10px 24px var(--sh-light);
+  }
+}
+
+/* glossy light sweep across an element on hover */
+@utility shine {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.45) 50%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform 0.8s ease;
+  }
+  &:hover::after {
+    transform: translateX(120%);
+  }
+}
+
+@utility text-gradient {
+  background: linear-gradient(90deg, var(--brand-blue), var(--brand-yellow));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---------- Animations ---------- */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(18px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+@keyframes spin-rev { to { transform: rotate(-360deg); } }
+@keyframes ball-bounce {
+  0%, 100% { transform: translateY(0) scale(1.08, 0.92); }
+  12% { transform: translateY(-6px) scale(0.96, 1.04); }
+  50% { transform: translateY(-58px) scale(1, 1); }
+  88% { transform: translateY(-6px) scale(0.96, 1.04); }
+}
+@keyframes shadow-pulse {
+  0%, 100% { transform: scaleX(1); opacity: 0.55; }
+  50% { transform: scaleX(0.45); opacity: 0.18; }
+}
+@keyframes letter-wave {
+  0%, 60%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-7px); color: var(--brand-yellow); }
+}
+@keyframes progress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(250%); }
+}
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-14px) rotate(8deg); }
+}
+@keyframes live-ping {
+  0% { box-shadow: 0 0 0 0 rgb(229 72 77 / 0.6); }
+  100% { box-shadow: 0 0 0 9px rgb(229 72 77 / 0); }
+}
+@keyframes draw-line {
+  from { stroke-dashoffset: var(--len, 1200); }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0); }
+  25% { transform: rotate(14deg); }
+  50% { transform: rotate(-12deg); }
+  75% { transform: rotate(6deg); }
+}
+@keyframes fade-out {
+  to { opacity: 0; visibility: hidden; }
+}
+@keyframes gradient-pan {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@utility animate-rise {
+  animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@utility animate-spin-slow {
+  animation: spin-slow 9s linear infinite;
+}
+@utility animate-spin-rev {
+  animation: spin-rev 14s linear infinite;
+}
+@utility animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+@utility animate-live {
+  animation: live-ping 1.4s ease-out infinite;
+}
+@utility animate-gradient {
+  background-size: 200% 200%;
+  animation: gradient-pan 10s ease infinite;
+}
+
+/* skeleton placeholder */
+@utility skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: inset 3px 3px 6px var(--sh-dark), inset -3px -3px 6px var(--sh-light);
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.18), transparent);
+    animation: shimmer 1.4s infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
