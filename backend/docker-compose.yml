@@ -1,0 +1,64 @@
+# Zoiko Sports — full stack. Run from this folder (backend/):
+#   docker compose up -d --build
+#
+#   frontend: nginx serving the built SPA on http://localhost:${ZS_HTTP_PORT:-8080}
+#             and proxying /api, /admin and /static to the backend.
+#   backend:  Django API (gunicorn) on the internal network only; SQLite, the
+#             generated secret key and the rate-limit cache live on a named volume.
+# Settings come from backend/.env (copy .env.example); every value has a safe default.
+name: zoiko-sports
+
+services:
+  backend:
+    build:
+      context: .
+    image: zoiko-sports-backend:latest
+    restart: unless-stopped
+    environment:
+      DJANGO_DEBUG: "false"
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-}          # empty = generated and kept on the volume
+      DJANGO_ALLOWED_HOSTS: ${ZS_ALLOWED_HOSTS:-localhost,127.0.0.1}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${ZS_PUBLIC_ORIGIN:-http://localhost:8080}
+      DJANGO_SECURE_COOKIES: ${DJANGO_SECURE_COOKIES:-false}  # set true when served over HTTPS
+      DJANGO_NUM_PROXIES: "1"
+      DJANGO_CACHE_DIR: /app/data/cache
+      FRONTEND_URL: ${ZS_PUBLIC_ORIGIN:-http://localhost:8080}
+      AUTH_THROTTLE_RATE: ${AUTH_THROTTLE_RATE:-10/min}
+      DJANGO_EMAIL_BACKEND: ${DJANGO_EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
+      DJANGO_DEFAULT_FROM_EMAIL: ${DJANGO_DEFAULT_FROM_EMAIL:-Zoiko Sports <no-reply@zoikosports.local>}
+      DJANGO_EMAIL_HOST: ${DJANGO_EMAIL_HOST:-}
+      DJANGO_EMAIL_PORT: ${DJANGO_EMAIL_PORT:-587}
+      DJANGO_EMAIL_HOST_USER: ${DJANGO_EMAIL_HOST_USER:-}
+      DJANGO_EMAIL_HOST_PASSWORD: ${DJANGO_EMAIL_HOST_PASSWORD:-}
+      DJANGO_EMAIL_USE_TLS: ${DJANGO_EMAIL_USE_TLS:-true}
+      AUTH_GOOGLE_CLIENT_ID: ${AUTH_GOOGLE_CLIENT_ID:-}
+      AUTH_MICROSOFT_CLIENT_ID: ${AUTH_MICROSOFT_CLIENT_ID:-}
+      AUTH_APPLE_CLIENT_ID: ${AUTH_APPLE_CLIENT_ID:-}
+      AUTH_SSO_METADATA_URL: ${AUTH_SSO_METADATA_URL:-}
+      AUTH_PASSKEYS_ENABLED: ${AUTH_PASSKEYS_ENABLED:-false}
+      ZS_SEED_DEMO: ${ZS_SEED_DEMO:-false}
+      ZS_DEMO_PASSWORD: ${ZS_DEMO_PASSWORD:-}
+    volumes:
+      - backend-data:/app/data
+    expose:
+      - "8000"
+
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        VITE_LINK_PRIVACY: ${VITE_LINK_PRIVACY:-}
+        VITE_LINK_TERMS: ${VITE_LINK_TERMS:-}
+        VITE_LINK_SECURITY: ${VITE_LINK_SECURITY:-}
+        VITE_LINK_ACCESSIBILITY: ${VITE_LINK_ACCESSIBILITY:-}
+        VITE_LINK_HELP: ${VITE_LINK_HELP:-}
+    image: zoiko-sports-frontend:latest
+    restart: unless-stopped
+    ports:
+      - "${ZS_HTTP_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  backend-data:

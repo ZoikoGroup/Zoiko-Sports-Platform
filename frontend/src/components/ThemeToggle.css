@@ -1,0 +1,51 @@
+/* Sits on the stadium photo next to the language control, so it is styled for a
+   dark backdrop in both themes. Sized in em so it scales with --s-lang. */
+.theme-toggle {
+  display: inline-flex;
+  gap: 0.15em;
+  margin: 0;
+  padding: 0.18em;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  background: rgba(4, 12, 44, 0.55);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.theme-toggle__option {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 1.95em;
+  height: 1.95em;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.78);
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.theme-toggle__option svg {
+  width: 1.05em;
+  height: 1.05em;
+}
+
+.theme-toggle__option input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.theme-toggle__option:hover {
+  color: #ffffff;
+}
+
+.theme-toggle__option:has(input:checked) {
+  background: var(--zs-yellow-400);
+  color: #11132e;
+}
+
+.theme-toggle__option:has(input:focus-visible) {
+  box-shadow: 0 0 0 2px #11132e, 0 0 0 4px var(--zs-yellow-300);
+}

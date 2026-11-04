@@ -1,0 +1,146 @@
+.social {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-social-gap);
+}
+
+.social__divider {
+  display: flex;
+  align-items: center;
+  gap: 0.9em;
+  font-size: var(--s-divider-font);
+  line-height: 1.25;
+  color: var(--ink-2);
+}
+
+.social__divider::before,
+.social__divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--divider);
+}
+
+.social__providers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-provider-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 420px) {
+  .social__providers {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.social__provider {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3em;
+  width: 100%;
+  min-height: var(--s-provider-h);
+  padding: 4px;
+  border: 1px solid var(--field-border);
+  border-radius: var(--s-field-radius);
+  background: var(--field-bg);
+  color: var(--ink);
+  font-size: var(--s-provider-label);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.social__provider:hover:not(:disabled) {
+  border-color: var(--field-border-hover);
+  background: var(--tile-hover);
+}
+
+.social__mark {
+  display: flex;
+  align-items: center;
+}
+
+.social__mark svg {
+  width: var(--s-provider-icon);
+  height: var(--s-provider-icon);
+}
+
+.social__passkey {
+  display: flex;
+  align-items: center;
+  gap: 0.9em;
+  width: 100%;
+  min-height: var(--s-passkey-h);
+  margin-top: var(--s-passkey-mt);
+  padding: 4px 1.1em;
+  border: 1px solid var(--passkey-border);
+  border-radius: var(--s-passkey-radius);
+  background: var(--passkey-bg);
+  color: var(--ink);
+  font-size: var(--s-passkey-title);
+  text-align: left;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+.social__passkey:hover:not(:disabled) {
+  filter: brightness(0.97) saturate(1.1);
+}
+
+.social__passkey > svg {
+  width: 1.4em;
+  height: 1.4em;
+  flex: none;
+  color: var(--accent);
+}
+
+.social__passkey-icon {
+  display: grid;
+  flex: none;
+  color: var(--accent);
+}
+
+.social__passkey-icon svg {
+  width: var(--s-passkey-icon);
+  height: var(--s-passkey-icon);
+}
+
+.social__passkey-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.social__badge {
+  padding: 0.15em 0.65em;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--passkey-sub);
+  font-size: calc(var(--s-passkey-sub) * 0.82);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Title and badge share a line when there's room; the badge wraps below otherwise. */
+.social__passkey-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15em 0.6em;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.social__passkey-text > span {
+  font-size: var(--s-passkey-sub);
+  font-weight: 500;
+  color: var(--passkey-sub);
+}

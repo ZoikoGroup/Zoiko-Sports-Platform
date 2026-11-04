@@ -1,0 +1,179 @@
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-gap);
+}
+
+.auth-form__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  margin-top: var(--s-row-mt);
+  font-size: var(--s-body);
+  line-height: 1.25;
+}
+
+.auth-form__row a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--s-row-h);
+  font-weight: 700;
+}
+
+.auth-form__submit {
+  margin-top: var(--s-btn-mt);
+}
+
+.auth-form__social {
+  margin-top: var(--s-social-mt);
+}
+
+.auth-form__aside {
+  margin-top: var(--s-aside-mt);
+  font-size: var(--s-aside-font);
+  line-height: 1.25;
+  text-align: center;
+  color: var(--ink);
+}
+
+.auth-form__aside a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  margin-left: 1.5em;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.auth-form__aside a svg {
+  width: 1.15em;
+  height: 1.15em;
+}
+
+.auth-form__note {
+  font-size: calc(var(--s-body) * 0.92);
+  color: var(--ink-3);
+}
+
+.auth-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.auth-form__actions .btn {
+  width: auto;
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: calc(var(--s-body) * 0.92);
+}
+
+/* "Keep me signed in" explainer ---------------------------------------- */
+.remember {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+}
+
+.toggletip {
+  position: relative;
+  display: inline-flex;
+}
+
+.toggletip > button {
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: var(--ink);
+  cursor: help;
+}
+
+.toggletip > button svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.toggletip__bubble {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  z-index: 5;
+  width: max-content;
+  max-width: 240px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--tooltip-bg);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--tooltip-ink);
+  transform: translateX(-50%);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.12s;
+}
+
+.toggletip:hover .toggletip__bubble,
+.toggletip:focus-within .toggletip__bubble {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Workspace summary ---------------------------------------------------- */
+.workspace-summary {
+  display: grid;
+  margin: 0 0 var(--s-header-gap);
+  padding: 4px 18px;
+  border: 1px solid var(--tile-border);
+  border-radius: var(--s-tile-radius);
+  background: var(--tile-bg);
+  font-size: var(--s-body);
+}
+
+.workspace-summary div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+}
+
+.workspace-summary div + div {
+  border-top: 1px solid var(--divider);
+}
+
+.workspace-summary dt {
+  color: var(--ink-3);
+}
+
+.workspace-summary dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.workspace-signout {
+  margin-top: var(--s-header-gap);
+}
+
+.verify-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Loader shown inside the card while a members-only page checks the session. */
+.splash {
+  display: grid;
+  place-items: center;
+  min-height: 12rem;
+  color: var(--ink-3);
+}

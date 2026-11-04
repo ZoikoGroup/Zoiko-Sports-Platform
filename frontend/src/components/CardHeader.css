@@ -1,0 +1,27 @@
+.card-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: var(--s-header-gap);
+  text-align: center;
+}
+
+.card-header__logo {
+  width: var(--s-logo-w);
+}
+
+.card-header__title {
+  margin-top: var(--s-title-mt);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--s-title);
+  line-height: 1.2;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+}
+
+.card-header__subtitle {
+  font-size: var(--s-subtitle);
+  line-height: 1.25;
+  color: var(--ink-2);
+}

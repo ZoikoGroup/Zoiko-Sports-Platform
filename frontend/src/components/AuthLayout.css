@@ -1,0 +1,602 @@
+/* ===========================================================================
+   Sign-in page frame
+   ---------------------------------------------------------------------------
+   Sizes live in --s-* tokens declared on .auth-shell. Mobile and tablet use
+   fixed pixel values; desktop redefines the same tokens in reference pixels
+   (--u = one pixel of the 1600×900 reference design), so every component
+   scales with the composition instead of carrying its own breakpoints.
+   =========================================================================== */
+.auth-shell {
+  /* Card */
+  --s-card-w: 100%;
+  --s-card-pad-x: 20px;
+  --s-card-pad-t: 24px;
+  --s-card-pad-b: 22px;
+  --s-card-radius: 24px;
+  --s-logo-w: 176px;
+  --s-title: 30px;
+  --s-title-mt: 6px;
+  --s-subtitle: 16px;
+  --s-header-gap: 20px;
+  /* Account-type tiles */
+  --s-tile-h: 88px;
+  --s-tile-gap: 8px;
+  --s-tile-bleed: 0px;
+  --s-tile-radius: 14px;
+  --s-tile-icon: 28px;
+  --s-tile-label: 14.5px;
+  --s-tile-hint: 11.5px;
+  --s-tiles-after: 4px;
+  /* Form */
+  --s-gap: 14px;
+  --s-label: 15px;
+  --s-label-gap: 6px;
+  --s-field-h: 48px;
+  --s-field-font: 16px;
+  --s-field-radius: 10px;
+  --s-icon: 20px;
+  --s-row-h: 44px;
+  --s-row-mt: 0px;
+  --s-check: 22px;
+  --s-body: 14.5px;
+  --s-btn-mt: 4px;
+  --s-btn-h: 52px;
+  --s-btn-font: 19px;
+  --s-alert-font: 14.5px;
+  /* Federated sign-in */
+  --s-social-mt: 18px;
+  --s-social-gap: 12px;
+  --s-divider-font: 15px;
+  --s-provider-h: 64px;
+  --s-provider-gap: 8px;
+  --s-provider-icon: 22px;
+  --s-provider-label: 13.5px;
+  --s-passkey-mt: 0px;
+  --s-passkey-h: 58px;
+  --s-passkey-radius: 14px;
+  --s-passkey-icon: 32px;
+  --s-passkey-title: 16px;
+  --s-passkey-sub: 13.5px;
+  --s-aside-mt: 16px;
+  --s-aside-font: 15px;
+  /* Page chrome */
+  --s-footer-gap: 18px;
+  --s-footer-font: 14px;
+
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: clip;
+  isolation: isolate;
+  container-type: inline-size;
+  background: var(--zs-navy-950);
+}
+
+/* Blurred copy of the artwork behind everything: fills whatever the plate
+   doesn't (outside the artboard on unusual aspect ratios, and on small screens). */
+.auth-ambient {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+}
+
+.auth-ambient img {
+  position: absolute;
+  inset: -6%;
+  width: 112%;
+  height: 112%;
+  object-fit: cover;
+  filter: blur(16px) saturate(1.1) brightness(0.6);
+}
+
+.auth-ambient::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(2, 10, 36, 0.3) 0%, rgba(2, 10, 36, 0.1) 40%, rgba(2, 10, 36, 0.55) 100%);
+}
+
+.auth-plate,
+.auth-swoosh {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Mobile / tablet: single column
+   --------------------------------------------------------------------------- */
+.auth-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'lang'
+    'intro'
+    'stage'
+    'card'
+    'features';
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 8px 16px 32px;
+}
+
+.auth-brand {
+  display: contents;
+}
+
+.auth-lang {
+  grid-area: lang;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 0.9em;
+  font-size: var(--s-lang, 16px);
+}
+
+.auth-intro {
+  grid-area: intro;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  color: var(--on-photo);
+}
+
+.auth-intro__logo {
+  width: min(230px, 60vw);
+  height: auto;
+}
+
+.auth-intro__headline {
+  margin-top: 14px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(1.55rem, 6.4vw, 2.3rem);
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.45);
+}
+
+.auth-intro__accent {
+  color: var(--zs-yellow-400);
+}
+
+.auth-intro__lede {
+  display: none;
+  margin-top: 10px;
+  max-width: 36ch;
+  color: var(--on-photo-muted);
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* Athletes framed from the plate. The plate is drawn at 2.38× the stage height
+   so heads to mid-body (artwork y 36%–78%) fill the frame; the group's centre is
+   55% of the plate height in from the plate's left edge. */
+.auth-stage {
+  --stage-h: clamp(220px, 60cqw, 430px);
+  grid-area: stage;
+  height: var(--stage-h);
+  margin: -6px calc(50% - 50cqw) -56px;
+  background-image: image-set(
+    url('../assets/backgrounds/stadium-stage.webp') type('image/webp'),
+    url('../assets/backgrounds/stadium-stage.jpg') type('image/jpeg')
+  );
+  background-repeat: no-repeat;
+  background-size: auto calc(var(--stage-h) * 2.38);
+  background-position: calc(50cqw - 0.55 * 2.38 * var(--stage-h)) calc(var(--stage-h) * -0.857);
+  -webkit-mask-image:
+    linear-gradient(180deg, transparent 0, #000 22%, #000 70%, transparent 100%),
+    linear-gradient(90deg, transparent 0, #000 12%, #000 88%, transparent 100%);
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(180deg, transparent 0, #000 22%, #000 70%, transparent 100%),
+    linear-gradient(90deg, transparent 0, #000 12%, #000 88%, transparent 100%);
+  mask-composite: intersect;
+  pointer-events: none;
+}
+
+.auth-features {
+  grid-area: features;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 28px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.auth-features li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  background: rgba(4, 14, 48, 0.4);
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.2;
+  color: var(--on-photo);
+}
+
+.auth-features svg {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  color: var(--zs-yellow-400);
+}
+
+.auth-card-column {
+  grid-area: card;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-footer-gap);
+  min-width: 0;
+}
+
+.auth-card {
+  width: var(--s-card-w);
+  padding: var(--s-card-pad-t) var(--s-card-pad-x) var(--s-card-pad-b);
+  border: 1px solid var(--card-border);
+  border-radius: var(--s-card-radius);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
+  backdrop-filter: blur(18px) saturate(1.3);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  color: var(--ink);
+}
+
+/* ---------------------------------------------------------------------------
+   Language + footer (both sit on the photo)
+   --------------------------------------------------------------------------- */
+.lang-select {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55em;
+  font-size: var(--s-lang, 16px);
+  font-weight: 600;
+  color: var(--on-photo);
+  filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.75));
+}
+
+.lang-select svg {
+  width: 1.3em;
+  height: 1.3em;
+  flex: none;
+}
+
+.lang-select svg:last-child {
+  width: 1em;
+  height: 1em;
+  margin-left: -1.6em;
+  pointer-events: none;
+}
+
+.lang-select select {
+  appearance: none;
+  min-height: 44px;
+  padding: 0 1.7em 0 0.1em;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.lang-select option {
+  background: var(--zs-navy-900);
+  color: #fff;
+}
+
+.auth-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45em;
+  font-size: var(--s-footer-font);
+  line-height: 1.25;
+  text-align: center;
+  color: var(--on-photo);
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.5);
+}
+
+.auth-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2em 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-weight: 600;
+}
+
+.auth-footer__links li {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Phones: links wrap freely; separators appear from tablet width up. */
+.auth-footer__links {
+  column-gap: 1.2em;
+}
+
+.auth-footer__links a,
+.auth-footer__links span {
+  color: var(--on-photo);
+}
+
+.auth-footer__note {
+  font-weight: 500;
+  color: var(--on-photo-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Tablet
+   --------------------------------------------------------------------------- */
+@media (min-width: 640px) {
+  .auth-shell {
+    --s-card-pad-x: 32px;
+    --s-card-pad-t: 30px;
+    --s-card-pad-b: 26px;
+    --s-tile-hint: 12px;
+  }
+
+  .auth-board {
+    padding: 16px 32px 40px;
+  }
+
+  .auth-intro__lede {
+    display: block;
+  }
+
+  .auth-features {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .auth-features li {
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    text-align: center;
+    font-size: 0.875rem;
+  }
+
+  .auth-footer__links {
+    column-gap: 0;
+  }
+
+  .auth-footer__links li + li::before {
+    content: '';
+    width: 2px;
+    height: 1.05em;
+    margin: 0 1em;
+    background: var(--zs-yellow-400);
+  }
+
+  /* The yellow rules either side of the footer links. */
+  .auth-footer__links::before,
+  .auth-footer__links::after {
+    content: '';
+    width: 2em;
+    height: 2px;
+    margin: 0 1.6em;
+    background: var(--zs-yellow-400);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Desktop: the reference artboard
+   --------------------------------------------------------------------------- */
+@media (min-width: 1200px) {
+  .auth-shell {
+    /* One reference pixel. Fits the 1600×900 design to the viewport (contain),
+       never below 75% (keeps text legible) or above 130% (keeps the artwork sharp). */
+    --u: clamp(0.75px, min(100cqw / 1600, 100vh / 900), 1.3px);
+
+    --s-card-w: calc(532 * var(--u));
+    --s-card-pad-x: calc(32 * var(--u));
+    --s-card-pad-t: calc(15 * var(--u));
+    --s-card-pad-b: calc(26 * var(--u));
+    --s-card-radius: calc(24 * var(--u));
+    --s-logo-w: calc(216 * var(--u));
+    --s-title: calc(40 * var(--u));
+    --s-title-mt: calc(-2 * var(--u));
+    --s-subtitle: calc(19 * var(--u));
+    --s-header-gap: calc(19 * var(--u));
+    --s-tile-h: calc(75 * var(--u));
+    --s-tile-gap: calc(2.5 * var(--u));
+    --s-tile-bleed: calc(10 * var(--u));
+    --s-tile-radius: calc(12 * var(--u));
+    --s-tile-icon: calc(30 * var(--u));
+    --s-tile-label: calc(15.5 * var(--u));
+    --s-tile-hint: calc(12.5 * var(--u));
+    --s-tiles-after: calc(7 * var(--u));
+    --s-gap: calc(6 * var(--u));
+    --s-label: calc(15.5 * var(--u));
+    --s-label-gap: calc(4 * var(--u));
+    --s-field-h: calc(35 * var(--u));
+    --s-field-font: calc(15 * var(--u));
+    --s-field-radius: calc(8 * var(--u));
+    --s-icon: calc(20 * var(--u));
+    --s-row-h: calc(20 * var(--u));
+    --s-row-mt: calc(6 * var(--u));
+    --s-check: calc(20 * var(--u));
+    --s-body: calc(15.5 * var(--u));
+    --s-btn-mt: calc(11 * var(--u));
+    --s-btn-h: calc(44 * var(--u));
+    --s-btn-font: calc(22 * var(--u));
+    --s-alert-font: calc(14 * var(--u));
+    --s-social-mt: calc(10 * var(--u));
+    --s-social-gap: calc(12 * var(--u));
+    --s-divider-font: calc(16 * var(--u));
+    --s-provider-h: calc(60 * var(--u));
+    --s-provider-gap: calc(8.5 * var(--u));
+    --s-provider-icon: calc(26 * var(--u));
+    --s-provider-label: calc(14 * var(--u));
+    --s-passkey-mt: calc(2.5 * var(--u));
+    --s-passkey-h: calc(52 * var(--u));
+    --s-passkey-radius: calc(14 * var(--u));
+    --s-passkey-icon: calc(34 * var(--u));
+    --s-passkey-title: calc(16.5 * var(--u));
+    --s-passkey-sub: calc(14 * var(--u));
+    --s-aside-mt: calc(17 * var(--u));
+    --s-aside-font: calc(17 * var(--u));
+    --s-footer-gap: calc(15 * var(--u));
+    --s-footer-font: calc(15.5 * var(--u));
+    --s-lang: calc(18 * var(--u));
+
+    display: grid;
+    place-items: center;
+  }
+
+  /* Columns from the reference: 62 gutter · brand · 532 card · 93 gutter.
+     Wider than 16:9, the board takes the full width so the brand column and card
+     keep their reference margins from the screen edges (no side bands). */
+  .auth-board {
+    position: relative;
+    grid-template-columns: calc(62 * var(--u)) minmax(0, 1fr) var(--s-card-w) calc(93 * var(--u));
+    grid-template-rows: auto;
+    grid-template-areas: none;
+    width: max(calc(1600 * var(--u)), 100cqw);
+    max-width: none;
+    min-height: calc(900 * var(--u));
+    margin: 0;
+    padding: 0 0 calc(24 * var(--u));
+  }
+
+  /* The plate's centre 1600 columns sit on the centre of the board; its extra
+     width and grass let it fill 4:3 to 21:9 viewports without empty bars. */
+  .auth-plate {
+    display: block;
+    position: absolute;
+    z-index: -1;
+    top: calc(-253 * var(--u));
+    left: calc(50% - 1360 * var(--u));
+    width: calc(2720 * var(--u));
+    height: calc(1454 * var(--u));
+    max-width: none;
+    pointer-events: none;
+  }
+
+  /* Shading from the reference: darker sky behind the brand column, a dimmed
+     top-right corner behind the language control, and a deeper band under the
+     footer. It covers the plate's full height (253 above, 301 below the board)
+     so it never ends in a visible edge on taller screens; positions are measured
+     from the board's edges so they track the brand column and the card. */
+  .auth-board::after {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: calc(-253 * var(--u)) 0 calc(-301 * var(--u));
+    background:
+      linear-gradient(90deg, rgba(2, 10, 36, 0.5) 0, rgba(2, 10, 36, 0.18) calc(420 * var(--u)), rgba(2, 10, 36, 0) calc(560 * var(--u))),
+      radial-gradient(calc(300 * var(--u)) calc(110 * var(--u)) at calc(100% - 128 * var(--u)) calc(253 * var(--u)), rgba(2, 10, 36, 0.7), rgba(2, 10, 36, 0)),
+      radial-gradient(calc(560 * var(--u)) calc(150 * var(--u)) at calc(100% - 359 * var(--u)) calc(1153 * var(--u)), rgba(3, 14, 52, 0.85), rgba(3, 14, 52, 0));
+    pointer-events: none;
+  }
+
+  /* Anchored to the viewport corner (not the artboard), as in the reference. */
+  .auth-swoosh {
+    display: block;
+    position: absolute;
+    z-index: -1;
+    right: 0;
+    bottom: 0;
+    width: calc(720 * var(--u));
+    height: calc(96 * var(--u));
+  }
+
+  .auth-lang {
+    grid-area: 1 / 3 / 2 / 5;
+    align-self: start;
+    margin: calc(10 * var(--u)) calc(55 * var(--u)) 0 0;
+  }
+
+  .auth-lang .lang-select select {
+    min-height: calc(44 * var(--u));
+  }
+
+  .auth-brand {
+    grid-area: 1 / 2 / 2 / 3;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding-top: calc(27 * var(--u));
+  }
+
+  .auth-intro {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .auth-intro__logo {
+    width: calc(359 * var(--u));
+  }
+
+  .auth-intro__headline {
+    margin-top: calc(19 * var(--u));
+    font-size: calc(44 * var(--u));
+    line-height: calc(46 * var(--u));
+    letter-spacing: -0.012em;
+    text-shadow: 0 2px 18px rgba(0, 0, 0, 0.35);
+  }
+
+  .auth-intro__headline span {
+    display: block;
+  }
+
+  .auth-intro__lede {
+    max-width: calc(258 * var(--u));
+    margin-top: calc(14 * var(--u));
+    font-size: calc(19.5 * var(--u));
+    line-height: calc(28 * var(--u));
+    color: var(--on-photo);
+  }
+
+  .auth-features {
+    grid-template-columns: 1fr;
+    gap: calc(8 * var(--u));
+    width: calc(250 * var(--u));
+    margin-top: calc(21 * var(--u));
+  }
+
+  .auth-features li {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: calc(28 * var(--u));
+    min-height: calc(54 * var(--u));
+    padding: calc(6 * var(--u)) calc(16 * var(--u)) calc(6 * var(--u)) calc(26 * var(--u));
+    border-width: calc(1.5 * var(--u));
+    border-radius: calc(11 * var(--u));
+    background: rgba(4, 14, 48, 0.35);
+    font-size: calc(18 * var(--u));
+    line-height: 1.25;
+    text-align: left;
+  }
+
+  .auth-features svg {
+    width: calc(38 * var(--u));
+    height: calc(38 * var(--u));
+  }
+
+  .auth-stage {
+    display: none;
+  }
+
+  .auth-card-column {
+    grid-area: 1 / 3 / 2 / 4;
+    align-self: start;
+    padding-top: calc(68 * var(--u));
+  }
+
+  .auth-footer__links::before,
+  .auth-footer__links::after {
+    width: calc(30 * var(--u));
+    height: calc(2.5 * var(--u));
+    margin: 0 calc(26 * var(--u));
+  }
+}

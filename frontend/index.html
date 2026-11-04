@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#041438" />
+    <meta name="description" content="Sign in to Zoiko Sports — the global sports platform for competitions, venues, teams and clubs." />
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <title>Sign in · Zoiko Sports</title>
+    <script>
+      // Apply the theme before first paint (no flash). Same rule as src/theme/theme.ts:
+      // a stored manual choice wins, otherwise follow the system preference.
+      ;(function () {
+        var pref = null
+        try {
+          pref = localStorage.getItem('zs.theme')
+        } catch (e) {}
+        var dark = pref === 'dark' || (pref !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
