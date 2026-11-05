@@ -1,26 +1,32 @@
 # Zoiko Sports — backend
 
 Django REST API for sign-in, registration, email verification and password
-reset, plus the Docker Compose stack for the whole application.
+reset, plus the Docker Compose files for the whole application.
 
-**Full documentation** — architecture, environment variables, authentication
-workflows, theming and troubleshooting — is in [`../frontend/README.md`](../frontend/README.md).
+**Full documentation** — architecture, setup, environment variables, API,
+authentication workflows and troubleshooting — is in the
+[repository README](../README.md).
 
 ## Quick reference
 
-Run the complete application (from this folder):
+Run from this folder:
 
 ```sh
 cp .env.example .env          # PowerShell: Copy-Item .env.example .env
-docker compose up -d --build  # build and start → http://localhost:8080/login
-docker compose ps             # status and health
-docker compose logs -f backend
+
+# Full stack (nginx + API) → http://localhost:8080/login
+docker compose up -d --build
+
+# Development: API only, for `npm run dev` in ../frontend → http://localhost:5173/login
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d backend
+
+docker compose ps                  # status and health
+docker compose logs -f backend     # API log (verification / reset emails appear here)
 docker compose restart
-docker compose stop
-docker compose down           # add -v to also delete the database volume
+docker compose down                # add -v to also delete the database volume
 ```
 
-Develop the API without Docker:
+API without Docker:
 
 ```sh
 python -m venv .venv
