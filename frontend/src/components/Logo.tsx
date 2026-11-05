@@ -14,9 +14,19 @@ interface LogoProps {
 
 export function Logo({ variant = 'wordmark', className }: LogoProps) {
   if (variant === 'lockup') {
-    // Intrinsic size of the extracted official artwork (2x asset).
+    // Intrinsic size of the extracted official artwork (2x asset). Small, so it is
+    // fetched first and decoded with the frame: it never waits behind the large
+    // stadium plate and appears together with the headline.
     return (
-      <img className={className} src={lockup} width={860} height={312} alt="Zoiko Sports — Global Sports Platform" decoding="async" />
+      <img
+        className={className}
+        src={lockup}
+        width={860}
+        height={312}
+        alt="Zoiko Sports — Global Sports Platform"
+        decoding="sync"
+        fetchPriority="high"
+      />
     )
   }
   return <span role="img" aria-label="Zoiko Sports" className={['logo-wordmark', className].filter(Boolean).join(' ')} />

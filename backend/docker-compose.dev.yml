@@ -1,0 +1,15 @@
+# Development override: run the API in Docker and the frontend with `npm run dev`.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d backend
+#   cd ../frontend && npm run dev          → http://localhost:5173/login
+#
+# Publishes the API on the host (127.0.0.1 only) so the Vite dev server can proxy
+# /api to it, and trusts the Vite origin for CSRF and email links.
+services:
+  backend:
+    ports:
+      - "127.0.0.1:${ZS_API_PORT:-8000}:8000"
+    environment:
+      DJANGO_CSRF_TRUSTED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      FRONTEND_URL: http://localhost:5173
+      DJANGO_NUM_PROXIES: "0"

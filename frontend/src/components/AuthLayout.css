@@ -237,15 +237,45 @@
 }
 
 .auth-card {
+  position: relative;
+  isolation: isolate;
   width: var(--s-card-w);
   padding: var(--s-card-pad-t) var(--s-card-pad-x) var(--s-card-pad-b);
   border: 1px solid var(--card-border);
   border-radius: var(--s-card-radius);
-  background: var(--card-bg);
   box-shadow: var(--card-shadow);
   backdrop-filter: blur(18px) saturate(1.3);
   -webkit-backdrop-filter: blur(18px) saturate(1.3);
   color: var(--ink);
+}
+
+/* Both card backgrounds are always present; the theme sets which one is opaque,
+   so a theme switch cross-fades the gradients (gradients can't be transitioned). */
+.auth-card::before,
+.auth-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.auth-card::before {
+  background: var(--card-bg-light);
+}
+
+.auth-card::after {
+  background: var(--card-bg-dark);
+  opacity: 0;
+}
+
+[data-theme='dark'] .auth-card::before {
+  opacity: 0;
+}
+
+[data-theme='dark'] .auth-card::after {
+  opacity: 1;
 }
 
 /* ---------------------------------------------------------------------------
@@ -593,10 +623,20 @@
     padding-top: calc(68 * var(--u));
   }
 
+  /* Reference: rules 29 wide with ~18 to the links, separators ~0.75em either
+     side; the whole row (≈485) fits the 532 card width on one line. */
+  .auth-footer__links {
+    flex-wrap: nowrap;
+  }
+
+  .auth-footer__links li + li::before {
+    margin: 0 0.75em;
+  }
+
   .auth-footer__links::before,
   .auth-footer__links::after {
-    width: calc(30 * var(--u));
+    width: calc(29 * var(--u));
     height: calc(2.5 * var(--u));
-    margin: 0 calc(26 * var(--u));
+    margin: 0 calc(18 * var(--u));
   }
 }

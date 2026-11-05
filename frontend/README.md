@@ -379,15 +379,21 @@ Choosing **System** again clears the stored choice and resumes following the OS.
   group, so it works with the keyboard (arrow keys) and screen readers.
 * A tiny inline script in `index.html` applies the same rule **before first
   paint**, so the page never flashes the wrong theme.
-* `src/index.css` defines semantic tokens (`--ink`, `--card-bg`, `--tile-bg`,
-  `--field-border`, `--link`, alert colours, …); light values are the default and
+* `src/index.css` defines semantic tokens (`--ink`, `--tile-bg`, `--field-border`,
+  `--link`, alert colours, …); light values are the default and
   `:root[data-theme='dark']` overrides them. Components only use tokens, so every
   element switches together. `color-scheme` follows the theme so native controls
   (scrollbars, select menus, autofill) match.
+* The card keeps both backgrounds as stacked layers (`AuthLayout.css`) and the
+  theme sets which one is opaque, so its gradient cross-fades.
 * The card logo is a CSS background (`src/components/Logo.css`) keyed off the same
   attribute — navy lettering on light, white on dark; only the variant in use downloads.
-* Switching cross-fades the whole page (View Transitions API, 0.35 s) where the
-  browser supports it, instantly otherwise and when "reduce motion" is requested.
+* **Smooth switching.** On a theme change `theme.ts` adds a `.theme-switching` class
+  for 0.4 s (counted from the first frame painted after the change). While it is
+  present, the card and its contents ease colours, borders and the background
+  layers over 0.35 s. The rule is scoped to the moment of switching and to the card
+  — the only part that differs between themes — so it never slows normal
+  interactions or the first paint. With *reduce motion* requested the switch is instant.
 * The app mounts once the brand fonts are ready (capped at 800 ms), so text never
   reflows from a fallback font after first paint.
 * Content on the stadium photograph (brand column, language selector, footer)

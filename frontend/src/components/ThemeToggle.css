@@ -1,32 +1,63 @@
 /* Sits on the stadium photo next to the language control, so it is styled for a
-   dark backdrop in both themes. Sized in em so it scales with --s-lang. */
+   dark backdrop in both themes. Sized in em so it scales with --s-lang.
+
+   The slot reserves the compact size in the header; the panel is absolutely
+   positioned at the slot's right edge and grows leftwards over the photo, so
+   expanding never shifts the language control or anything else. */
+.theme-toggle-slot {
+  --option: 2.1em;
+  --pad: 0.18em;
+  position: relative;
+  flex: none;
+  width: calc(var(--option) + 2 * var(--pad) + 2px);
+  height: calc(1.95em + 2 * var(--pad) + 2px);
+}
+
 .theme-toggle {
-  display: inline-flex;
-  gap: 0.15em;
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
   margin: 0;
-  padding: 0.18em;
+  padding: var(--pad);
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
-  background: rgba(4, 12, 44, 0.55);
+  background: rgba(4, 12, 44, 0.6);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.6);
+  transition:
+    border-color 0.25s ease,
+    background-color 0.25s ease;
+}
+
+.theme-toggle[data-expanded='true'] {
+  border-color: rgba(255, 255, 255, 0.45);
+  background: rgba(4, 12, 44, 0.78);
 }
 
 .theme-toggle__option {
   position: relative;
   display: grid;
   place-items: center;
-  width: 1.95em;
+  width: var(--option);
   height: 1.95em;
-  border-radius: 999px;
+  overflow: hidden;
   color: rgba(255, 255, 255, 0.78);
   cursor: pointer;
-  transition: background-color 0.2s, color 0.2s;
+  transition:
+    width 0.28s cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity 0.2s ease,
+    color 0.2s ease;
 }
 
-.theme-toggle__option svg {
-  width: 1.05em;
-  height: 1.05em;
+/* Compact: only the active option keeps its width. The others collapse to zero
+   width (they stay in the radio group for keyboard and screen-reader users). */
+.theme-toggle:not([data-expanded='true']) .theme-toggle__option:not(:has(input:checked)) {
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .theme-toggle__option input {
@@ -37,15 +68,39 @@
   cursor: pointer;
 }
 
+.theme-toggle__pill {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 1.95em;
+  height: 1.95em;
+  border-radius: 999px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.theme-toggle__pill svg {
+  width: 1.05em;
+  height: 1.05em;
+}
+
 .theme-toggle__option:hover {
   color: #ffffff;
 }
 
-.theme-toggle__option:has(input:checked) {
+.theme-toggle__option:has(input:checked) .theme-toggle__pill {
   background: var(--zs-yellow-400);
   color: #11132e;
 }
 
-.theme-toggle__option:has(input:focus-visible) {
+.theme-toggle__option:has(input:focus-visible) .theme-toggle__pill {
   box-shadow: 0 0 0 2px #11132e, 0 0 0 4px var(--zs-yellow-300);
+}
+
+/* Touch screens: scale the whole control so each option is a ≥44px target. */
+@media (pointer: coarse) {
+  .theme-toggle-slot {
+    font-size: max(1em, 22.6px);
+  }
 }

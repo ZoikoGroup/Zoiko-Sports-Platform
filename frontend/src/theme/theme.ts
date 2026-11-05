@@ -32,20 +32,30 @@ let preference = readPreference()
 
 const resolve = (pref: ThemePreference): Theme => (pref === 'system' ? (systemQuery.matches ? 'dark' : 'light') : pref)
 
-function apply(animate: boolean) {
-  const next = resolve(preference)
+const SWITCH_MS = 400
+let switchTimer: number | undefined
+
+/**
+ * Sets the resolved theme. On a change (not the first paint) the .theme-switching
+ * class briefly enables colour transitions so the switch eases instead of snapping
+ * (index.css); reduced-motion users get it instantly via the media query there.
+ */
+function apply(animate = true) {
   const root = document.documentElement
+  const next = resolve(preference)
   if (root.dataset.theme === next) return
-  const commit = () => {
-    root.dataset.theme = next
+  if (animate) {
+    root.classList.add('theme-switching')
+    window.clearTimeout(switchTimer)
+    // Transitions start on the first frame painted after the change, which can lag
+    // on slower machines; count the window from that frame so it never cuts a fade short.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        switchTimer = window.setTimeout(() => root.classList.remove('theme-switching'), SWITCH_MS)
+      }),
+    )
   }
-  // Cross-fade the whole page (gradients and images included) where supported.
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  if (animate && !reduceMotion && 'startViewTransition' in document) {
-    document.startViewTransition(commit)
-  } else {
-    commit()
-  }
+  root.dataset.theme = next
 }
 
 function notify() {
@@ -60,13 +70,13 @@ export function setThemePreference(next: ThemePreference) {
   } catch {
     /* storage unavailable: the choice still applies for this visit */
   }
-  apply(true)
+  apply()
   notify()
 }
 
 // Follow the operating system while no manual choice is set.
 systemQuery.addEventListener('change', () => {
-  if (preference === 'system') apply(true)
+  if (preference === 'system') apply()
   notify()
 })
 
@@ -74,7 +84,7 @@ systemQuery.addEventListener('change', () => {
 window.addEventListener('storage', (event) => {
   if (event.key !== STORAGE_KEY) return
   preference = readPreference()
-  apply(true)
+  apply()
   notify()
 })
 

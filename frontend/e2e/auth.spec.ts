@@ -327,8 +327,13 @@ test.describe('reference layout (desktop)', () => {
 })
 
 test.describe('theme follows the system preference', () => {
+  // The card's light and dark backgrounds are stacked layers; the theme makes one opaque.
   const cardBackground = (page: Page) =>
-    page.locator('.auth-card').evaluate((el) => getComputedStyle(el).backgroundImage)
+    page.locator('.auth-card').evaluate((el) => {
+      const light = getComputedStyle(el, '::before')
+      const dark = getComputedStyle(el, '::after')
+      return Number(light.opacity) === 1 ? light.backgroundImage : dark.backgroundImage
+    })
   const wordmarkSource = (page: Page) =>
     page.getByRole('img', { name: 'Zoiko Sports', exact: true }).evaluate((el) => getComputedStyle(el).backgroundImage)
   const titleColor = (page: Page) =>
@@ -373,20 +378,31 @@ test.describe('theme follows the system preference', () => {
 test.describe('theme toggle', () => {
   const theme = (page: Page) => page.evaluate(() => document.documentElement.dataset.theme)
   const option = (page: Page, name: string) => page.getByRole('radio', { name })
+  const toggle = (page: Page) => page.locator('.theme-toggle')
+  const visibleOptions = (page: Page) =>
+    page.locator('.theme-toggle__option').evaluateAll(
+      (options) => options.filter((o) => o.getBoundingClientRect().width > 4 && Number(getComputedStyle(o).opacity) > 0.5).length,
+    )
+  // The toggle is compact until hovered/focused/tapped, so open it as a user would.
+  const choose = async (page: Page, name: string) => {
+    await toggle(page).hover()
+    await expect(toggle(page)).toHaveAttribute('data-expanded', 'true')
+    await option(page, name).check()
+  }
 
   test('starts on "system" and offers Light, System and Dark', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' })
     await page.goto('/login')
     await expect(option(page, 'Match system theme')).toBeChecked()
     expect(await theme(page)).toBe('dark')
-    await expect(option(page, 'Light theme')).toBeVisible()
-    await expect(option(page, 'Dark theme')).toBeVisible()
+    await toggle(page).hover()
+    await expect.poll(() => visibleOptions(page)).toBe(3)
   })
 
   test('a manual choice overrides the system theme and persists across reloads', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' })
     await page.goto('/login')
-    await option(page, 'Dark theme').check()
+    await choose(page, 'Dark theme')
     await expect.poll(() => theme(page)).toBe('dark')
 
     await page.reload()
@@ -402,8 +418,8 @@ test.describe('theme toggle', () => {
   test('"system" follows the operating system again, live', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' })
     await page.goto('/login')
-    await option(page, 'Dark theme').check()
-    await option(page, 'Match system theme').check()
+    await choose(page, 'Dark theme')
+    await choose(page, 'Match system theme')
     await expect.poll(() => theme(page)).toBe('light')
     expect(await page.evaluate(() => localStorage.getItem('zs.theme'))).toBeNull()
 
@@ -434,4 +450,47 @@ test.describe('theme toggle', () => {
     await expect(option(page, 'Light theme')).toBeChecked()
     await expect.poll(() => theme(page)).toBe('light')
   })
+
+  test('compact by default; hover expands, leaving collapses, nothing else moves', async ({ page }) => {
+    await page.goto('/login')
+    await page.locator('.auth-card').waitFor()
+    const where = () =>
+      page.evaluate(() =>
+        ['.lang-select', '.auth-card'].map((sel) => {
+          const r = document.querySelector(sel)!.getBoundingClientRect()
+          return [Math.round(r.x), Math.round(r.y)]
+        }),
+      )
+    await expect(toggle(page)).toHaveAttribute('data-expanded', 'false')
+    await expect.poll(() => visibleOptions(page)).toBe(1)
+    const before = await where()
+
+    await toggle(page).hover()
+    await expect(toggle(page)).toHaveAttribute('data-expanded', 'true')
+    await expect.poll(() => visibleOptions(page)).toBe(3)
+    expect(await where()).toEqual(before)
+
+    await page.mouse.move(5, 5)
+    await expect(toggle(page)).toHaveAttribute('data-expanded', 'false')
+    await expect.poll(() => visibleOptions(page)).toBe(1)
+    expect(await where()).toEqual(before)
+  })
+
+  test('touch: tap opens without changing the theme, choosing closes it', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name === 'desktop', 'touch projects only')
+    await page.emulateMedia({ colorScheme: 'light' })
+    await page.goto('/login')
+    await toggle(page).tap()
+    await expect(toggle(page)).toHaveAttribute('data-expanded', 'true')
+    expect(await theme(page)).toBe('light')
+    await expect.poll(() => visibleOptions(page)).toBe(3)
+
+    await page.locator('.theme-toggle__option', { has: option(page, 'Dark theme') }).tap()
+    await expect.poll(() => theme(page)).toBe('dark')
+    await expect(toggle(page)).toHaveAttribute('data-expanded', 'false')
+
+    const target = (await page.locator('.theme-toggle__option:has(input:checked)').boundingBox())!
+    expect(Math.min(target.width, target.height)).toBeGreaterThanOrEqual(44)
+  })
+
 })

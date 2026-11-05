@@ -1,181 +1,3 @@
-/* Theme colours are registered as <color> so a theme switch animates them
-   (gradient stops included) instead of snapping. Initial values = light theme. */
-@property --ink {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #11132e;
-}
-@property --ink-2 {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #2b2e48;
-}
-@property --ink-3 {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #4a4e6a;
-}
-@property --ink-4 {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #6b6f8c;
-}
-@property --link {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #4b1bd8;
-}
-@property --link-hover {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #3510b0;
-}
-@property --card-c1 {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: rgba(255, 255, 255, 0.97);
-}
-@property --card-c2 {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: rgba(246, 244, 255, 0.96);
-}
-@property --card-c3 {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: rgba(236, 233, 252, 0.95);
-}
-@property --card-border {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: rgba(255, 255, 255, 0.9);
-}
-@property --tile-c1 {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #ffffff;
-}
-@property --tile-c2 {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #f1f1fa;
-}
-@property --tile-border {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #e1e1f0;
-}
-@property --tile-hover {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #f7f6ff;
-}
-@property --field-bg {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #ffffff;
-}
-@property --field-border {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #c9cbe3;
-}
-@property --field-border-hover {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #a9acd0;
-}
-@property --divider {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #d3d4e8;
-}
-@property --passkey-c1 {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #ece8fc;
-}
-@property --passkey-c2 {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #ece8fc;
-}
-@property --passkey-border {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: transparent;
-}
-@property --passkey-sub {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #34277f;
-}
-@property --accent {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #6417f1;
-}
-@property --check-border {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #8a8daa;
-}
-@property --alert-error-bg {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #fde8ec;
-}
-@property --alert-error-border {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #f3b4c0;
-}
-@property --alert-error-ink {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #8a1430;
-}
-@property --alert-success-bg {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #e3f6ec;
-}
-@property --alert-success-border {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #a8dfc1;
-}
-@property --alert-success-ink {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #145233;
-}
-@property --alert-info-bg {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #e8ecfd;
-}
-@property --alert-info-border {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #b9c5f5;
-}
-@property --alert-info-ink {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #1c2e7a;
-}
-@property --tooltip-bg {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #11132e;
-}
-@property --tooltip-ink {
-  syntax: '<color>';
-  inherits: true;
-  initial-value: #ffffff;
-}
-
 /* ---------------------------------------------------------------------------
    Design tokens
    Brand values are sampled from the official Zoiko Sports artwork.
@@ -208,13 +30,9 @@
   --ink-4: #6b6f8c;
   --link: #4b1bd8;
   --link-hover: #3510b0;
-  --card-c1: rgba(255, 255, 255, 0.97);
-  --card-c2: rgba(246, 244, 255, 0.96);
-  --card-c3: rgba(236, 233, 252, 0.95);
   --card-border: rgba(255, 255, 255, 0.9);
   --card-shadow: 0 30px 70px -24px rgba(3, 8, 40, 0.65);
-  --tile-c1: #ffffff;
-  --tile-c2: #f1f1fa;
+  --tile-bg: #f8f8fd;
   --tile-border: #e1e1f0;
   --tile-hover: #f7f6ff;
   --tile-shadow: 0 2px 6px rgba(20, 22, 70, 0.08);
@@ -222,8 +40,7 @@
   --field-border: #c9cbe3;
   --field-border-hover: #a9acd0;
   --divider: #d3d4e8;
-  --passkey-c1: #ece8fc;
-  --passkey-c2: #ece8fc;
+  --passkey-bg: #ece8fc;
   --passkey-border: transparent;
   --passkey-sub: #34277f;
   --accent: #6417f1;
@@ -240,52 +57,15 @@
   --tooltip-bg: #11132e;
   --tooltip-ink: #ffffff;
   --page-bg: var(--zs-navy-950);
-  --card-bg: linear-gradient(165deg, var(--card-c1) 0%, var(--card-c2) 55%, var(--card-c3) 100%);
-  --tile-bg: linear-gradient(180deg, var(--tile-c1) 0%, var(--tile-c2) 100%);
-  --passkey-bg: linear-gradient(90deg, var(--passkey-c1), var(--passkey-c2));
+  /* The card's two backgrounds; AuthLayout.css cross-fades between them. */
+  --card-bg-light: linear-gradient(165deg, rgba(255, 255, 255, 0.97) 0%, rgba(246, 244, 255, 0.96) 55%, rgba(236, 233, 252, 0.95) 100%);
+  --card-bg-dark: linear-gradient(165deg, rgba(14, 22, 64, 0.86) 0%, rgba(8, 15, 46, 0.84) 100%);
   --focus-ring: 0 0 0 3px rgba(100, 23, 241, 0.45);
 
   --font-sans: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Poppins', var(--font-sans);
 
   color-scheme: light;
-  /* Smooth light/dark switch: every registered theme colour eases together. */
-  transition:
-    --ink 0.35s ease,
-    --ink-2 0.35s ease,
-    --ink-3 0.35s ease,
-    --ink-4 0.35s ease,
-    --link 0.35s ease,
-    --link-hover 0.35s ease,
-    --card-c1 0.35s ease,
-    --card-c2 0.35s ease,
-    --card-c3 0.35s ease,
-    --card-border 0.35s ease,
-    --tile-c1 0.35s ease,
-    --tile-c2 0.35s ease,
-    --tile-border 0.35s ease,
-    --tile-hover 0.35s ease,
-    --field-bg 0.35s ease,
-    --field-border 0.35s ease,
-    --field-border-hover 0.35s ease,
-    --divider 0.35s ease,
-    --passkey-c1 0.35s ease,
-    --passkey-c2 0.35s ease,
-    --passkey-border 0.35s ease,
-    --passkey-sub 0.35s ease,
-    --accent 0.35s ease,
-    --check-border 0.35s ease,
-    --alert-error-bg 0.35s ease,
-    --alert-error-border 0.35s ease,
-    --alert-error-ink 0.35s ease,
-    --alert-success-bg 0.35s ease,
-    --alert-success-border 0.35s ease,
-    --alert-success-ink 0.35s ease,
-    --alert-info-bg 0.35s ease,
-    --alert-info-border 0.35s ease,
-    --alert-info-ink 0.35s ease,
-    --tooltip-bg 0.35s ease,
-    --tooltip-ink 0.35s ease;
   font-family: var(--font-sans);
   font-size: 16px;
   line-height: 1.5;
@@ -304,13 +84,9 @@
   --ink-4: #8189ab;
   --link: #b39cff;
   --link-hover: #d3c6ff;
-  --card-c1: rgba(14, 22, 64, 0.86);
-  --card-c2: rgba(11, 18, 55, 0.85);
-  --card-c3: rgba(8, 15, 46, 0.84);
   --card-border: rgba(255, 255, 255, 0.12);
   --card-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  --tile-c1: rgba(255, 255, 255, 0.05);
-  --tile-c2: rgba(255, 255, 255, 0.05);
+  --tile-bg: rgba(255, 255, 255, 0.05);
   --tile-border: rgba(255, 255, 255, 0.12);
   --tile-hover: rgba(255, 255, 255, 0.09);
   --tile-shadow: none;
@@ -318,8 +94,7 @@
   --field-border: rgba(255, 255, 255, 0.22);
   --field-border-hover: rgba(255, 255, 255, 0.34);
   --divider: rgba(255, 255, 255, 0.14);
-  --passkey-c1: rgba(100, 23, 241, 0.26);
-  --passkey-c2: rgba(100, 23, 241, 0.1);
+  --passkey-bg: rgba(100, 23, 241, 0.2);
   --passkey-border: rgba(166, 139, 255, 0.28);
   --passkey-sub: #c9bcff;
   --accent: #b39cff;
@@ -392,6 +167,26 @@ a:hover {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* While the theme switches (theme.ts adds .theme-switching for 0.4 s), the card
+   — the only part that changes between themes; the photo, brand column and
+   footer are identical — eases instead of snapping. Scoped to the switch and to
+   the card so it stays cheap, never affects normal interactions or first paint,
+   and reduced-motion users get the switch instantly. */
+@media (prefers-reduced-motion: no-preference) {
+  .theme-switching .auth-card,
+  .theme-switching .auth-card::before,
+  .theme-switching .auth-card::after,
+  .theme-switching .auth-card *,
+  .theme-switching .auth-card *::before,
+  .theme-switching .auth-card *::after {
+    transition:
+      color 0.35s ease,
+      background-color 0.35s ease,
+      border-color 0.35s ease,
+      opacity 0.35s ease !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

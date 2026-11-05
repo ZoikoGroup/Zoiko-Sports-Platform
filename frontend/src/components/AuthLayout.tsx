@@ -32,7 +32,8 @@ function StadiumPlate() {
     <picture>
       <source media={DESKTOP} type="image/webp" srcSet={`${plateHalfWebp} 1360w, ${plateWebp} 2720w`} sizes={PLATE_SIZES} />
       <source media={DESKTOP} srcSet={`${plateHalfJpg} 1360w, ${plateJpg} 2720w`} sizes={PLATE_SIZES} />
-      <img className="auth-plate" src={BLANK} width={2720} height={1454} alt="" aria-hidden="true" fetchPriority="high" />
+      {/* Large: decoded off the main thread so it never delays the content above it. */}
+      <img className="auth-plate" src={BLANK} width={2720} height={1454} alt="" aria-hidden="true" decoding="async" />
     </picture>
   )
 }
