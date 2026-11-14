@@ -329,13 +329,27 @@ Copy `backend/.env.example`; every value is optional and has a safe default.
 | `VITE_API_PROXY_TARGET` | `http://127.0.0.1:8000` | Where the dev server proxies `/api` |
 | `VITE_PORT` | `5173` | Dev server port |
 | `VITE_LINK_*` | — | Footer links (unset links render as plain text, never as dead links) |
+| `VITE_ORGANIZER_DATA` | — (demo data) | `api` makes the Organizer dashboard call the backend instead of using demo data |
 
 ## 8. Frontend configuration
 
 * **Routing** (`frontend/src/App.tsx`): `/login`, `/register`, `/forgot-password`,
-  `/reset-password`, `/verify-email`, `/workspace`. Guest pages render
-  immediately and redirect to `/workspace` if a session already exists;
-  `/workspace` requires a session and returns to the requested page after sign-in.
+  `/reset-password`, `/verify-email`, `/workspace`, `/organizer/*`. Guest pages
+  render immediately and send a signed-in visitor to their home page;
+  member pages require a session and return to the requested page after sign-in.
+* **Role home pages** (`frontend/src/auth/roles.ts`): a session in the
+  Organization workspace with an organizer membership lands on
+  `/organizer/overview`; every other workspace lands on `/workspace`.
+  `/organizer/*` is guarded by role, so other sessions are sent to their own
+  home. This is UI routing only — organizer API endpoints must enforce access
+  on the server when they are added.
+* **Organizer Workspace** (`frontend/src/features/organizer/`, loaded as its own
+  chunk): sidebar, top bar and the Overview dashboard; the other sidebar
+  modules render a "coming in a later build" page inside the same shell. The
+  dashboard reads only from `api/organizerApi.ts`, which serves static demo data
+  (`api/mockOverview.ts`) in the response shape defined in `api/types.ts`. Set
+  `VITE_ORGANIZER_DATA=api` once `GET /api/v1/organizer/overview/` returns that
+  shape; no component changes are needed.
 * **API client** (`frontend/src/api/client.ts`): JSON over `fetch`, same-origin
   cookies, reads the `csrftoken` cookie before every unsafe request (Django
   rotates it on sign-in) and turns the backend error envelope into an `ApiError`.

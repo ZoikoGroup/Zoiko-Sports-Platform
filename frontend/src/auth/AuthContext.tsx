@@ -1,11 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { authApi, type AuthConfig, type LoginInput, type Session } from '../api/auth'
+import { authApi, type AuthConfig, type LoginInput, type Session, type SignedInSession } from '../api/auth'
 
 interface AuthState {
   /** null while the initial session check is in flight. */
   session: Session | null
   config: AuthConfig | null
-  login: (input: LoginInput) => Promise<void>
+  /** Signs in and resolves with the new session (used to pick the landing page). */
+  login: (input: LoginInput) => Promise<SignedInSession>
   logout: () => Promise<void>
 }
 
@@ -27,7 +28,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = useCallback(async (input: LoginInput) => {
-    setSession(await authApi.login(input))
+    const signedIn = await authApi.login(input)
+    setSession(signedIn)
+    return signedIn
   }, [])
 
   const logout = useCallback(async () => {

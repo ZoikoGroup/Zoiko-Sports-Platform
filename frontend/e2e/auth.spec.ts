@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+ import { expect, test, type Page } from '@playwright/test'
 import { linkFromEmail } from './mail'
 
 // Random per run (playwright.config.ts) and seeded into the throwaway backend.
@@ -22,7 +22,21 @@ async function signIn(page: Page, email: string, password: string, workspace: st
 const uniqueEmail = (prefix: string) => `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1e6)}@example.com`
 
 test.describe('sign in to each of the four workspaces', () => {
-  for (const workspace of WORKSPACES) {
+  test('Organization lands on the Organizer dashboard', async ({ page }) => {
+    await page.goto('/login')
+    await signIn(page, 'demo@zoikosports.test', DEMO_PASSWORD, WORKSPACES[0].radio)
+
+    await expect(page).toHaveURL(/\/organizer\/overview$/)
+    await expect(page.getByRole('heading', { name: 'Global Competition Operations' })).toBeVisible()
+    await page.reload()
+    await expect(page.getByRole('heading', { name: 'Global Competition Operations' })).toBeVisible()
+    // /workspace is not a dead end for organizers: it forwards to the dashboard.
+    await page.goto('/workspace')
+    await expect(page).toHaveURL(/\/organizer\/overview$/)
+  })
+
+  // The other workspaces keep the session summary page.
+  for (const workspace of WORKSPACES.slice(1)) {
     test(workspace.label, async ({ page }) => {
       await page.goto('/login')
       await signIn(page, 'demo@zoikosports.test', DEMO_PASSWORD, workspace.radio)

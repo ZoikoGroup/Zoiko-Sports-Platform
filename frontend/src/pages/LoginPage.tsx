@@ -5,6 +5,7 @@ import { authApi, type AccountTypeId, type ProviderId } from '../api/auth'
 import { ApiError } from '../api/client'
 import { accountTypeLabel, rememberAccountType, rememberedAccountType } from '../auth/accountTypes'
 import { useAuth } from '../auth/AuthContext'
+import { homePathFor } from '../auth/roles'
 import { AccountTypeSelector } from '../components/AccountTypeSelector'
 import { CardHeader } from '../components/CardHeader'
 import { Alert } from '../components/form/Alert'
@@ -49,9 +50,10 @@ export function LoginPage() {
 
     setSubmitting(true)
     try {
-      await login({ email: email.trim(), password, account_type: accountType, remember })
+      const session = await login({ email: email.trim(), password, account_type: accountType, remember })
+      // A deep link wins; route guards send it on if this role can't open it.
       const from = (location.state as { from?: string } | null)?.from
-      navigate(from ?? '/workspace', { replace: true })
+      navigate(from ?? homePathFor(session), { replace: true })
     } catch (error) {
       if (error instanceof ApiError && error.code === 'workspace_unavailable') {
         setAvailableTypes((error.fields.available_account_types as AccountTypeId[] | undefined) ?? [])
