@@ -10,6 +10,16 @@
   width: var(--s-logo-w);
 }
 
+.card-header__mark {
+  width: var(--s-mark);
+  height: var(--s-mark);
+  filter: drop-shadow(0 6px 14px rgba(20, 60, 200, 0.35));
+}
+
+.card-header__mark + .card-header__title {
+  margin-top: var(--s-mark-gap);
+}
+
 .card-header__title {
   margin-top: var(--s-title-mt);
   font-family: var(--font-display);

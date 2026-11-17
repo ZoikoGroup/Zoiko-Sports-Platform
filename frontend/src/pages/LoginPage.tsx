@@ -12,7 +12,7 @@ import { Alert } from '../components/form/Alert'
 import { Button } from '../components/form/Button'
 import { Checkbox } from '../components/form/Checkbox'
 import { PasswordField, TextField } from '../components/form/TextField'
-import { SocialSignIn } from '../components/SocialSignIn'
+import { SsoSignIn } from '../components/SsoSignIn'
 import { EMAIL_PATTERN, useFormFeedback } from './useFormFeedback'
 import './pages.css'
 
@@ -85,16 +85,11 @@ export function LoginPage() {
     }
   }
 
-  function startPasskey() {
-    reset()
-    setFeedback({ tone: 'info', message: "Passkey sign-in isn't available yet. Use your email and password." })
-  }
-
   return (
     <>
-      <CardHeader title="Welcome back" subtitle="Sign in to your Zoiko Sports account." documentTitle="Sign in" />
+      <CardHeader title="Welcome back" subtitle="Sign in to your Zoiko Sports account." documentTitle="Sign in" logo="mark" />
 
-      <form className="auth-form" onSubmit={handleSubmit} noValidate>
+      <form className="auth-form auth-form--signin" onSubmit={handleSubmit} noValidate>
         <AccountTypeSelector value={accountType} onChange={selectAccountType} disabled={submitting} />
 
         {feedback && (
@@ -169,7 +164,7 @@ export function LoginPage() {
       </form>
 
       <div className="auth-form__social">
-        <SocialSignIn config={config} onProvider={startProvider} onPasskey={startPasskey} disabled={submitting} />
+        <SsoSignIn config={config} onProvider={startProvider} disabled={submitting} />
       </div>
 
       <p className="auth-form__aside">

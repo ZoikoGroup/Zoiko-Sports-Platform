@@ -112,9 +112,9 @@ frontend/
     auth/                   session context, the four account types
     components/
       AuthLayout.*          page frame: artboard, background plate, brand column, footer
-      AccountTypeSelector.* the four workspace tiles (native radio group)
-      SocialSignIn.*        Google / Microsoft / Apple / Company SSO + passkey
-      ThemeToggle.*         expandable Light / System / Dark switch
+      AccountTypeSelector.* the four workspaces as one segmented bar (native radio group)
+      SsoSignIn.*           "Sign in with SSO" below a dotted rule
+      ThemeToggle.*         Light / System / Dark switch
       CardHeader.*, Logo.*, icons/
       form/                 TextField, PasswordField, Checkbox, Button, Alert
     theme/theme.ts          theme preference, persistence, system sync
@@ -216,7 +216,7 @@ printed in the backend log (see *Inspect* below).
 | Shell in the API container | `docker compose exec backend sh` |
 | Django management command | `docker compose exec backend python manage.py <command>` |
 | Create an admin user (for /admin) | `docker compose exec backend python manage.py createsuperuser` |
-| Re-run the demo seed | `docker compose exec -e ZS_ALLOW_DEMO_SEED=true backend python manage.py seed_demo` |
+| Re-run the demo seed (also resets the demo password) | `docker compose exec -T -e ZS_ALLOW_DEMO_SEED=true -e ZS_DEMO_PASSWORD="<password>" backend sh -c 'DJANGO_SECRET_KEY="${DJANGO_SECRET_KEY:-$(cat /app/data/.secret_key)}" python manage.py seed_demo'` — management commands run through `exec` must load the container's generated secret key, as the entrypoint does |
 | API health from the host | `curl http://localhost:8080/api/v1/auth/config/` |
 | Web health from the host | `curl http://localhost:8080/healthz` |
 
@@ -356,8 +356,9 @@ Copy `backend/.env.example`; every value is optional and has a safe default.
 * **Session state** (`frontend/src/auth/AuthContext.tsx`): loads `/session/` and
   `/config/` once, exposes `login` / `logout`.
 * **Assets:** the logo and stadium images are derived from the official Zoiko
-  Sports artwork — the logo is extracted, not redrawn; the card uses a navy-ink
-  variant of the same artwork on the light theme. The small brand logo is
+  Sports artwork — the logo is extracted, not redrawn. The sign-in card shows
+  the logo tile alone; the other cards use the full wordmark, in a navy-ink
+  variant on the light theme. The small brand logo is
   fetched first and decoded with the frame; the large stadium image decodes off
   the main thread, so it never delays the content above it.
 
@@ -411,11 +412,13 @@ characters, not common, not all digits, not similar to the email).
 Auth endpoints are rate-limited per client (`AUTH_THROTTLE_RATE`); behind nginx
 the real client address is used, and the limit is shared across gunicorn workers.
 
-**Google, Microsoft, Apple, Company SSO and passkeys.** The buttons are part of
-the design but no identity-provider integration exists yet. Each one tells the
-user it is "not yet available"; setting a provider's variable only marks it as
-configured — the server then reports "configured but not yet connected" until
-the provider flow is implemented.
+**Company SSO (and other providers).** The sign-in page offers one
+"Sign in with SSO" button, as in the design, but no identity-provider
+integration exists yet: choosing it tells the user it is "not yet available".
+Setting `AUTH_SSO_METADATA_URL` only marks SSO as configured — the server then
+reports "configured but not yet connected" until the flow is implemented. The
+API still accepts the Google, Microsoft, Apple and passkey settings for later
+use; the current design shows no buttons for them.
 
 ## 11. Theme (light / dark) and theme toggle
 
@@ -439,20 +442,15 @@ Choosing **System** again clears the stored choice and resumes following the OS.
 The switch sits in the top-right corner, next to the language selector
 (`frontend/src/components/ThemeToggle.*`).
 
-* **Compact by default** — a small pill showing only the active option
-  (sun = Light, monitor = System, moon = Dark).
-* **Mouse** — hovering expands it smoothly to reveal all three options; moving
-  away collapses it. It stays open while an option is clicked, and rapid
-  in/out movement settles cleanly without flicker.
-* **Touch** — the first tap expands it without changing the theme; tapping an
-  option switches and collapses it about half a second later; tapping anywhere
-  else collapses it. On touch screens each option is at least 44 × 44 px.
-* **Keyboard and screen readers** — it is a native radio group: Tab focus
-  expands it, arrow keys switch, Escape or moving focus away collapses it, and
-  all three options are announced.
-* **No layout shift** — a fixed-size slot holds the compact pill and the
-  expanding panel opens leftwards over the photo, so the language selector and
-  the rest of the page never move.
+* **Always visible** — a pill showing all three options (sun = Light,
+  monitor = System, moon = Dark), the active one in brand yellow, followed by a
+  hairline and the language selector.
+* **Mouse and touch** — one click or tap switches the theme. On touch screens
+  each option is at least 44 × 44 px.
+* **Keyboard and screen readers** — it is a native radio group: arrow keys
+  switch and all three options are announced.
+* **No layout shift** — switching theme changes colours only; nothing on the
+  page moves.
 
 ### How the theme is applied
 
@@ -537,14 +535,14 @@ ships. It then runs every journey at desktop (1600 × 900), tablet (820 × 1180)
 and mobile (390 × 844):
 
 * the four workspace sign-ins, errors, registration and reset through real email links;
-* federated / passkey messaging;
+* single sign-on "not yet available" messaging;
 * reference-geometry checks at 1280 × 720, 1600 × 900 and 1920 × 1080, plus
   edge margins at 1850 × 958 and 2560 × 1080;
 * layout stability while loading (cumulative layout shift) and scrolling;
 * light, dark, manual and live system theme switching, persistence and
   first-paint theme;
-* the theme toggle: compact by default, expand/collapse on hover, touch and
-  keyboard, 44px touch targets, and no layout shift.
+* the theme toggle: all three options visible, mouse, touch and keyboard,
+  44px touch targets, and no layout shift.
 
 It uses the installed Microsoft Edge; set `E2E_BROWSER_CHANNEL=chrome` for Chrome.
 

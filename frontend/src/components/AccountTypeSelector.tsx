@@ -8,7 +8,11 @@ interface AccountTypeSelectorProps {
   disabled?: boolean
 }
 
-/** The four sign-in workspaces as a native radio group (arrow keys move between options). */
+/**
+ * The four sign-in workspaces as a native radio group (arrow keys move between
+ * options), drawn as one segmented control. Each option is announced as
+ * "Organization (League / Event)"; the design shows the hint without brackets.
+ */
 export function AccountTypeSelector({ value, onChange, disabled }: AccountTypeSelectorProps) {
   return (
     <fieldset className="account-types" disabled={disabled}>
@@ -21,11 +25,12 @@ export function AccountTypeSelector({ value, onChange, disabled }: AccountTypeSe
             value={id}
             checked={value === id}
             onChange={() => onChange(id)}
+            aria-label={`${label} (${hint})`}
           />
-          <span className="account-type__tile">
-            <Icon size={30} aria-hidden="true" />
+          <span className="account-type__tile" aria-hidden="true">
+            <Icon size={30} />
             <span className="account-type__label">{label}</span>
-            <span className="account-type__hint">({hint})</span>
+            <span className="account-type__hint">{hint}</span>
           </span>
         </label>
       ))}

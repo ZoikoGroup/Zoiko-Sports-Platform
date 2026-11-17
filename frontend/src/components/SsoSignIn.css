@@ -1,0 +1,59 @@
+.sso {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-sso-gap);
+}
+
+/* A hairline with a small dot at its centre. */
+.sso__divider {
+  position: relative;
+  height: 1px;
+  background: var(--divider);
+}
+
+.sso__divider::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--divider-dot);
+  transform: translate(-50%, -50%);
+}
+
+.sso__button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6em;
+  width: 100%;
+  min-height: var(--s-sso-h);
+  padding: 0 16px;
+  border: 1px solid var(--sso-border);
+  border-radius: var(--s-field-radius);
+  background: var(--sso-bg);
+  color: var(--ink);
+  font-size: var(--s-sso-font);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.sso__button svg {
+  width: 1.15em;
+  height: 1.15em;
+}
+
+.sso__button:hover:not(:disabled) {
+  border-color: var(--field-border-hover);
+  background: var(--tile-hover);
+}
+
+.sso__button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}

@@ -40,6 +40,9 @@
   --field-border: #c9cbe3;
   --field-border-hover: #a9acd0;
   --divider: #d3d4e8;
+  --divider-dot: #b4b7d3;
+  --sso-border: #c9cbe3;
+  --sso-bg: #ffffff;
   --passkey-bg: #ece8fc;
   --passkey-border: transparent;
   --passkey-sub: #34277f;
@@ -94,6 +97,9 @@
   --field-border: rgba(255, 255, 255, 0.22);
   --field-border-hover: rgba(255, 255, 255, 0.34);
   --divider: rgba(255, 255, 255, 0.14);
+  --divider-dot: rgba(255, 255, 255, 0.45);
+  --sso-border: rgba(255, 255, 255, 0.26);
+  --sso-bg: rgba(255, 255, 255, 0.02);
   --passkey-bg: rgba(100, 23, 241, 0.2);
   --passkey-border: rgba(166, 139, 255, 0.28);
   --passkey-sub: #c9bcff;

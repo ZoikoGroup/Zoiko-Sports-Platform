@@ -26,7 +26,7 @@ test.describe('sign in to each of the four workspaces', () => {
     await page.goto('/login')
     await signIn(page, 'demo@zoikosports.test', DEMO_PASSWORD, WORKSPACES[0].radio)
 
-    await expect(page).toHaveURL(/\/organizer\/overview$/)
+     await expect(page).toHaveURL(/\/organizer\/overview$/)
     await expect(page.getByRole('heading', { name: 'Global Competition Operations' })).toBeVisible()
     await page.reload()
     await expect(page.getByRole('heading', { name: 'Global Competition Operations' })).toBeVisible()
@@ -129,14 +129,12 @@ test.describe('login page controls', () => {
     await expect(password).toHaveAttribute('type', 'password')
   })
 
-  test('federated and passkey options explain they are not yet available', async ({ page }) => {
+  test('single sign-on explains it is not yet available', async ({ page }) => {
     await page.goto('/login')
-    for (const name of ['Google', 'Microsoft', 'Apple', 'Company SSO']) {
-      await page.getByRole('button', { name: `${name} sign-in — not yet available` }).click()
-      await expect(page.getByRole('status')).toContainText(`Sign-in with ${name} isn't available yet`)
-    }
-    await page.getByRole('button', { name: /Use a passkey/ }).click()
-    await expect(page.getByRole('status')).toContainText("Passkey sign-in isn't available yet")
+    const sso = page.getByRole('button', { name: 'Sign in with SSO' })
+    await expect(sso).toHaveAccessibleDescription('Not yet available')
+    await sso.click()
+    await expect(page.getByRole('status')).toContainText("Sign-in with Company SSO isn't available yet")
   })
 
   test('signed-in visitors are sent to their workspace; deep links return after sign-in', async ({ page }) => {
@@ -222,8 +220,8 @@ test.describe('responsive layout', () => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     expect(overflow).toBe(0)
 
-    await expect(page.getByRole('img', { name: 'Zoiko Sports — Global Sports Platform' })).toBeVisible()
     await expect(page.getByRole('img', { name: 'Zoiko Sports', exact: true })).toBeVisible()
+    await expect(page.locator('.card-header__mark')).toBeVisible()
     for (const { radio } of WORKSPACES) {
       const tile = page.locator('label.account-type', { has: page.getByRole('radio', { name: radio }) })
       await tile.scrollIntoViewIfNeeded()
@@ -244,15 +242,17 @@ test.describe('responsive layout', () => {
 })
 
 test.describe('reference layout (desktop)', () => {
-  // Boxes measured on the 1600×900 reference design (Login Page.jpeg): [x, top, right, bottom].
+  // Boxes measured on the 1672×941 reference design, in 1600×900 artboard units
+  // (1 unit = 1.045 px): [x, top, right, bottom]. The brand logo is the official
+  // artwork drawn at the reference logo's width, so its box is the artwork's.
   const REFERENCE: Record<string, [number, number, number, number]> = {
-    '.auth-card': [975, 68, 1507, 776],
-    '.auth-intro__logo': [62, 27, 421, 157],
-    '.auth-intro__headline': [62, 177, 422, 315],
-    '.auth-features': [62, 462, 312, 706],
-    '.account-types': [998, 236, 1484, 311],
-    '.auth-form__submit': [1008, 498, 1474, 542],
-    '.social__passkey': [1008, 658, 1474, 710],
+    '.auth-card': [950, 87, 1532, 752],
+    '.auth-intro__logo': [80, 60, 368, 145],
+    '.auth-intro__headline': [80, 182, 475, 333],
+    '.auth-features': [80, 464, 356, 693],
+    '.account-types': [980, 275, 1504, 353],
+    '.auth-form__submit': [997, 564, 1490, 612],
+    '.sso__button': [995, 651, 1492, 690],
   }
   // In reference px. Font sizes round to whole device pixels, so scaled
   // viewports drift slightly more than the 1:1 design (±3px at 1600×900).
@@ -313,10 +313,10 @@ test.describe('reference layout (desktop)', () => {
       const [logo, card, board] = await Promise.all(
         ['.auth-intro__logo', '.auth-card', '.auth-board'].map((s) => page.locator(s).boundingBox()),
       )
-      // Brand column 62 from the left edge, card 93 from the right, card top 68 — as in the reference.
-      expect(Math.abs(logo!.x / u - 62)).toBeLessThanOrEqual(2)
-      expect(Math.abs((viewport.width - card!.x - card!.width) / u - 93)).toBeLessThanOrEqual(2)
-      expect(Math.abs(card!.y / u - 68)).toBeLessThanOrEqual(2)
+      // Brand column 80 from the left edge, card 68 from the right, card top 87 — as in the reference.
+      expect(Math.abs(logo!.x / u - 80)).toBeLessThanOrEqual(2)
+      expect(Math.abs((viewport.width - card!.x - card!.width) / u - 68)).toBeLessThanOrEqual(2)
+      expect(Math.abs(card!.y / u - 87)).toBeLessThanOrEqual(2)
       // The board spans the whole width: no side bands where the shading or artwork stops.
       expect(board!.x).toBeLessThanOrEqual(0)
       expect(board!.x + board!.width).toBeGreaterThanOrEqual(viewport.width)
@@ -348,17 +348,18 @@ test.describe('theme follows the system preference', () => {
       const dark = getComputedStyle(el, '::after')
       return Number(light.opacity) === 1 ? light.backgroundImage : dark.backgroundImage
     })
-  const wordmarkSource = (page: Page) =>
-    page.getByRole('img', { name: 'Zoiko Sports', exact: true }).evaluate((el) => getComputedStyle(el).backgroundImage)
   const titleColor = (page: Page) =>
     page.getByRole('heading', { name: 'Welcome back' }).evaluate((el) => getComputedStyle(el).color)
+  // White on the light card, a near-transparent wash on the dark card.
+  const ssoBackground = (page: Page) =>
+    page.getByRole('button', { name: 'Sign in with SSO' }).evaluate((el) => getComputedStyle(el).backgroundColor)
 
   test('light system theme shows the reference light card', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'light' })
     await page.goto('/login')
     expect(await cardBackground(page)).toContain('rgba(255, 255, 255, 0.97)')
     expect(await titleColor(page)).toBe('rgb(17, 19, 46)')
-    await expect.poll(() => wordmarkSource(page)).toContain('logo-wordmark-ink')
+    expect(await ssoBackground(page)).toBe('rgb(255, 255, 255)')
   })
 
   test('dark system theme shows the dark card', async ({ page }) => {
@@ -366,7 +367,7 @@ test.describe('theme follows the system preference', () => {
     await page.goto('/login')
     expect(await cardBackground(page)).toContain('rgba(14, 22, 64, 0.86)')
     expect(await titleColor(page)).toBe('rgb(255, 255, 255)')
-    await expect.poll(() => wordmarkSource(page)).not.toContain('logo-wordmark-ink')
+    expect(await ssoBackground(page)).toBe('rgba(255, 255, 255, 0.02)')
   })
 
   test('switching the system theme restyles the page live, without a reload', async ({ page }) => {
@@ -378,11 +379,11 @@ test.describe('theme follows the system preference', () => {
 
     await page.emulateMedia({ colorScheme: 'dark' })
     await expect.poll(() => titleColor(page)).toBe('rgb(255, 255, 255)')
-    await expect.poll(() => wordmarkSource(page)).not.toContain('logo-wordmark-ink')
+    await expect.poll(() => cardBackground(page)).toContain('rgba(14, 22, 64, 0.86)')
 
     await page.emulateMedia({ colorScheme: 'light' })
     await expect.poll(() => titleColor(page)).toBe('rgb(17, 19, 46)')
-    await expect.poll(() => wordmarkSource(page)).toContain('logo-wordmark-ink')
+    await expect.poll(() => cardBackground(page)).toContain('rgba(255, 255, 255, 0.97)')
 
     await expect(page.getByLabel('Email address')).toHaveValue('still-here@example.com')
     expect(await page.evaluate(() => (window as unknown as { __marker?: boolean }).__marker)).toBe(true)
@@ -392,25 +393,17 @@ test.describe('theme follows the system preference', () => {
 test.describe('theme toggle', () => {
   const theme = (page: Page) => page.evaluate(() => document.documentElement.dataset.theme)
   const option = (page: Page, name: string) => page.getByRole('radio', { name })
-  const toggle = (page: Page) => page.locator('.theme-toggle')
-  const visibleOptions = (page: Page) =>
-    page.locator('.theme-toggle__option').evaluateAll(
-      (options) => options.filter((o) => o.getBoundingClientRect().width > 4 && Number(getComputedStyle(o).opacity) > 0.5).length,
-    )
-  // The toggle is compact until hovered/focused/tapped, so open it as a user would.
-  const choose = async (page: Page, name: string) => {
-    await toggle(page).hover()
-    await expect(toggle(page)).toHaveAttribute('data-expanded', 'true')
-    await option(page, name).check()
-  }
+  const choose = (page: Page, name: string) => option(page, name).check()
 
-  test('starts on "system" and offers Light, System and Dark', async ({ page }) => {
+  test('starts on "system" and shows Light, System and Dark side by side', async ({ page }) => {
     await page.emulateMedia({ colorScheme: 'dark' })
     await page.goto('/login')
     await expect(option(page, 'Match system theme')).toBeChecked()
     expect(await theme(page)).toBe('dark')
-    await toggle(page).hover()
-    await expect.poll(() => visibleOptions(page)).toBe(3)
+    // All three are visible without hovering, as in the reference design.
+    for (const name of ['Light theme', 'Match system theme', 'Dark theme']) {
+      await expect(page.locator('.theme-toggle__option', { has: option(page, name) })).toBeVisible()
+    }
   })
 
   test('a manual choice overrides the system theme and persists across reloads', async ({ page }) => {
@@ -465,46 +458,36 @@ test.describe('theme toggle', () => {
     await expect.poll(() => theme(page)).toBe('light')
   })
 
-  test('compact by default; hover expands, leaving collapses, nothing else moves', async ({ page }) => {
+  test('switching theme moves nothing else on the page', async ({ page }) => {
     await page.goto('/login')
     await page.locator('.auth-card').waitFor()
     const where = () =>
       page.evaluate(() =>
-        ['.lang-select', '.auth-card'].map((sel) => {
+        ['.theme-toggle', '.lang-select', '.auth-card'].map((sel) => {
           const r = document.querySelector(sel)!.getBoundingClientRect()
-          return [Math.round(r.x), Math.round(r.y)]
+          return [Math.round(r.x), Math.round(r.y), Math.round(r.width)]
         }),
       )
-    await expect(toggle(page)).toHaveAttribute('data-expanded', 'false')
-    await expect.poll(() => visibleOptions(page)).toBe(1)
     const before = await where()
-
-    await toggle(page).hover()
-    await expect(toggle(page)).toHaveAttribute('data-expanded', 'true')
-    await expect.poll(() => visibleOptions(page)).toBe(3)
-    expect(await where()).toEqual(before)
-
-    await page.mouse.move(5, 5)
-    await expect(toggle(page)).toHaveAttribute('data-expanded', 'false')
-    await expect.poll(() => visibleOptions(page)).toBe(1)
+    await choose(page, 'Dark theme')
+    await expect.poll(() => theme(page)).toBe('dark')
+    await choose(page, 'Light theme')
+    await expect.poll(() => theme(page)).toBe('light')
     expect(await where()).toEqual(before)
   })
 
-  test('touch: tap opens without changing the theme, choosing closes it', async ({ page }, testInfo) => {
+  test('touch: one tap switches the theme; each option is a 44px target', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name === 'desktop', 'touch projects only')
     await page.emulateMedia({ colorScheme: 'light' })
     await page.goto('/login')
-    await toggle(page).tap()
-    await expect(toggle(page)).toHaveAttribute('data-expanded', 'true')
-    expect(await theme(page)).toBe('light')
-    await expect.poll(() => visibleOptions(page)).toBe(3)
-
     await page.locator('.theme-toggle__option', { has: option(page, 'Dark theme') }).tap()
     await expect.poll(() => theme(page)).toBe('dark')
-    await expect(toggle(page)).toHaveAttribute('data-expanded', 'false')
-
-    const target = (await page.locator('.theme-toggle__option:has(input:checked)').boundingBox())!
-    expect(Math.min(target.width, target.height)).toBeGreaterThanOrEqual(44)
+    const boxes = await page.locator('.theme-toggle__option').evaluateAll((els) =>
+      els.map((e) => {
+        const r = e.getBoundingClientRect()
+        return Math.min(r.width, r.height)
+      }),
+    )
+    for (const side of boxes) expect(side).toBeGreaterThanOrEqual(44)
   })
-
 })

@@ -22,8 +22,8 @@ const FEATURES = [
 // drawn (the in-flow stage frames the athletes), so a 1×1 GIF stands in and the
 // full-size artwork is never downloaded on phones.
 const DESKTOP = '(min-width: 1200px)'
-// The plate is drawn 2720 reference px wide, i.e. 1.7× the 1600px artboard.
-const PLATE_SIZES = '170vw'
+// The plate is drawn 2570 reference px wide, i.e. ~1.61× the 1600px artboard.
+const PLATE_SIZES = '161vw'
 const BLANK = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
 
 /** Stadium artwork; its centre 1600×900 reproduces the reference framing exactly. */
@@ -112,19 +112,20 @@ export function AuthLayout({ children }: { children: ReactNode }) {
 
         <header className="auth-lang">
           <ThemeToggle />
+          <span className="auth-lang__rule" aria-hidden="true" />
           <LanguageSelect />
         </header>
 
         <div className="auth-brand">
           <section className="auth-intro" aria-label="About Zoiko Sports">
-            <Logo variant="lockup" className="auth-intro__logo" />
+            <Logo variant="brand" className="auth-intro__logo" />
             <p className="auth-intro__headline">
               <span>Powering the </span>
               <span>Next Generation </span>
               <span className="auth-intro__accent">of Sport.</span>
             </p>
             <p className="auth-intro__lede">
-              Plan, operate and grow competitions, venues, teams and fan experiences — globally.
+              Plan, operate and grow competitions, venues, teams, and fan experiences globally.
             </p>
           </section>
 

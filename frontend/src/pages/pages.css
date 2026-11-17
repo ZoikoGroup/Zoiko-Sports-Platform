@@ -177,3 +177,14 @@
   min-height: 12rem;
   color: var(--ink-3);
 }
+
+/* Sign-in card on the desktop artboard: icon insets from the reference. */
+@media (min-width: 1200px) {
+  .auth-form--signin .field__icon {
+    padding-left: calc(19.4 * var(--u));
+  }
+
+  .auth-form--signin .field__control input {
+    padding-left: calc(18.3 * var(--u));
+  }
+}

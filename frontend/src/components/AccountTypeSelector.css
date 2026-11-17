@@ -1,3 +1,6 @@
+/* Phones: four separate tiles in a 2×2 grid. From 420px: one segmented bar
+   (a single outlined strip with hairline dividers; the chosen option is a
+   filled violet segment), as in the reference design. */
 .account-types {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6,12 +9,6 @@
   margin: 0 calc(-1 * var(--s-tile-bleed)) var(--s-tiles-after);
   padding: 0;
   border: 0;
-}
-
-@media (min-width: 420px) {
-  .account-types {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
 }
 
 .account-type {
@@ -24,6 +21,7 @@
 .account-type input {
   position: absolute;
   inset: 0;
+  z-index: 1;
   margin: 0;
   opacity: 0;
   cursor: pointer;
@@ -43,13 +41,16 @@
   box-shadow: var(--tile-shadow);
   color: var(--ink);
   text-align: center;
-  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
 }
 
 .account-type__tile svg {
   width: var(--s-tile-icon);
   height: var(--s-tile-icon);
-  margin-bottom: 0.15em;
+  margin-bottom: 0.2em;
 }
 
 .account-type__label {
@@ -60,7 +61,7 @@
 
 .account-type__hint {
   font-size: var(--s-tile-hint);
-  line-height: 1.25;
+  line-height: 1.3;
   white-space: nowrap;
   color: var(--ink-3);
 }
@@ -71,7 +72,7 @@
 }
 
 .account-type input:checked + .account-type__tile {
-  border-color: transparent;
+  border-color: rgba(255, 255, 255, 0.35);
   background: linear-gradient(180deg, var(--zs-violet-500) 0%, var(--zs-violet-700) 100%);
   box-shadow: 0 8px 20px -8px rgba(100, 23, 241, 0.75);
   color: #ffffff;
@@ -87,4 +88,42 @@
 
 .account-types:disabled .account-type {
   cursor: progress;
+}
+
+@media (min-width: 420px) {
+  .account-types {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0;
+    border: 1px solid var(--tile-border);
+    border-radius: var(--s-tile-radius);
+    background: var(--tile-bg);
+  }
+
+  .account-type__tile {
+    margin: -1px;
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .account-type:hover .account-type__tile {
+    border-color: transparent;
+  }
+
+  /* Hairline dividers between unselected segments. */
+  .account-type + .account-type::before {
+    content: '';
+    position: absolute;
+    top: 16%;
+    bottom: 16%;
+    left: 0;
+    width: 1px;
+    background: var(--tile-border);
+    transition: opacity 0.15s;
+  }
+
+  .account-type:has(input:checked)::before,
+  .account-type:has(input:checked) + .account-type::before {
+    opacity: 0;
+  }
 }
