@@ -20,43 +20,50 @@ export const REGION_LABELS: Record<RegionId, string> = {
 }
 
 export const STATUS_LABELS: Record<EventStatus, string> = {
+  confirmed: 'Confirmed',
+  scheduled: 'Scheduled',
+  preparing: 'Preparing',
   ready: 'Ready',
   'in-progress': 'In Progress',
-  preparing: 'Preparing',
-  scheduled: 'Scheduled',
 }
 
 const integer = new Intl.NumberFormat('en-US')
 export const formatCount = (value: number) => integer.format(value)
 
 /**
- * Short zone name for an instant ("PST", "JST", "IST", "AEDT"). en-US only knows
- * American abbreviations, so other locales are tried for zones it renders as
- * "GMT+x"; the offset form is kept if none has a common abbreviation.
+ * "Nov 18 – 20, 2026" / "Nov 28 – Dec 2, 2026": an event's dates in its own time
+ * zone, as organizers plan it. A one-day event shows a single date.
  */
-const ZONE_LOCALES = ['en-US', 'en-AU', 'en-IN', 'en-GB', 'ja-JP']
-export function zoneAbbreviation(date: Date, timeZone: string): string {
-  let fallback = ''
-  for (const locale of ZONE_LOCALES) {
-    const name = new Intl.DateTimeFormat(locale, { timeZone, timeZoneName: 'short' })
-      .formatToParts(date)
-      .find((part) => part.type === 'timeZoneName')?.value
-    if (!name) continue
-    if (/^[A-Z]{2,5}$/.test(name)) return name
-    fallback ||= name
-  }
-  return fallback
+export function formatEventRange(startIso: string, endIso: string, timeZone: string): string {
+  const day = new Intl.DateTimeFormat('en-US', { timeZone, month: 'short', day: 'numeric' })
+  const year = new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric' })
+  const start = new Date(startIso)
+  const end = new Date(endIso)
+  const first = day.format(start)
+  const last = day.format(end)
+  const startYear = year.format(start)
+  const endYear = year.format(end)
+  if (first === last && startYear === endYear) return `${first}, ${endYear}`
+  if (startYear !== endYear) return `${first}, ${startYear} – ${last}, ${endYear}`
+  const [startMonth] = first.split(' ')
+  const [endMonth, endDay] = last.split(' ')
+  return startMonth === endMonth ? `${first} – ${endDay}, ${endYear}` : `${first} – ${last}, ${endYear}`
 }
 
-/**
- * { date: "Nov 8,", time: "7:00 PM PST" }: the event's local wall time, as
- * organizers plan it, split so a narrow column wraps between date and time.
- */
-export function formatEventStart(iso: string, timeZone: string): { date: string; time: string } {
-  const date = new Date(iso)
-  const day = new Intl.DateTimeFormat('en-US', { timeZone, month: 'short', day: 'numeric' }).format(date)
-  const time = new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', minute: '2-digit' }).format(date)
-  return { date: `${day},`, time: `${time} ${zoneAbbreviation(date, timeZone)}` }
+/** "Now", "10 min ago", "2h ago", "3d ago" — compact elapsed time for activity lists. */
+export function formatAgo(iso: string, now = new Date()): string {
+  const minutes = Math.max(0, Math.round((now.getTime() - new Date(iso).getTime()) / 60_000))
+  if (minutes < 1) return 'Now'
+  if (minutes < 60) return `${minutes} min ago`
+  const hours = Math.round(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.round(hours / 24)}d ago`
+}
+
+/** "2026-06" → "Jun" (or "Jun 2026" with `withYear`). */
+export function formatMonth(month: string, withYear = false): string {
+  const [y, m] = month.split('-').map(Number)
+  return new Date(y, m - 1, 1).toLocaleDateString('en-US', withYear ? { month: 'long', year: 'numeric' } : { month: 'short' })
 }
 
 const dayKey = (date: Date) => date.toLocaleDateString('en-CA')

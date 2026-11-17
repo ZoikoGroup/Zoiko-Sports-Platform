@@ -1,10 +1,13 @@
 import { CircleAlert, RefreshCw } from 'lucide-react'
-import { useOrganizerShell, useDocumentTitle } from '../shellContext'
+import { useDocumentTitle, useOrganizerShell } from '../shellContext'
+import { CompetitionActivity } from './CompetitionActivity'
 import { GlobalParticipation } from './GlobalParticipation'
 import { HeroBanner } from './HeroBanner'
 import { KpiCards } from './KpiCards'
+import { OperationalAlerts } from './OperationalAlerts'
 import { QuickActions } from './QuickActions'
-import { RecentDecisions } from './RecentDecisions'
+import { RecentUpdates } from './RecentUpdates'
+import { TasksApprovals } from './TasksApprovals'
 import { UpcomingEvents } from './UpcomingEvents'
 
 function OverviewSkeleton() {
@@ -19,18 +22,21 @@ function OverviewSkeleton() {
           <div key={i} className="org-skeleton org-skeleton--kpi" />
         ))}
       </div>
-      <div className="org-overview__grid">
-        <div className="org-skeleton org-skeleton--card-lg" />
-        <div className="org-overview__side">
-          <div className="org-skeleton org-skeleton--card" />
-          <div className="org-skeleton org-skeleton--card" />
-        </div>
+      <div className="org-overview__row org-overview__row--main">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="org-skeleton org-skeleton--card" />
+        ))}
+      </div>
+      <div className="org-overview__row org-overview__row--ops">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="org-skeleton org-skeleton--card-sm" />
+        ))}
       </div>
     </div>
   )
 }
 
-/** 01. Overview — the Organizer landing page after sign-in. */
+/** Overview — the Organizer landing page after sign-in. */
 export function OverviewPage() {
   const { overview, region, setRegion } = useOrganizerShell()
   useDocumentTitle('Overview')
@@ -54,18 +60,22 @@ export function OverviewPage() {
   }
 
   const data = overview.data
+  const now = new Date(data.generatedAt)
   return (
     <div className="org-overview" data-testid="organizer-overview">
       <HeroBanner title={data.hero.title} subtitle={data.hero.subtitle} />
       <KpiCards kpis={data.kpis} />
-      <div className="org-overview__grid">
+      <div className="org-overview__row org-overview__row--main">
         <UpcomingEvents events={data.upcomingEvents} generatedAt={data.generatedAt} region={region} onRegionChange={setRegion} />
-        <div className="org-overview__side">
-          <GlobalParticipation shares={data.participation} region={region} />
-          <RecentDecisions items={data.recentDecisions} now={new Date(data.generatedAt)} />
-        </div>
+        <CompetitionActivity activity={data.activity} />
+        <GlobalParticipation participation={data.participation} region={region} />
       </div>
-      <QuickActions />
+      <div className="org-overview__row org-overview__row--ops">
+        <OperationalAlerts alerts={data.alerts} now={now} />
+        <TasksApprovals totalPending={data.tasks.totalPending} items={data.tasks.items} />
+        <QuickActions />
+      </div>
+      <RecentUpdates items={data.recentUpdates} now={now} />
     </div>
   )
 }

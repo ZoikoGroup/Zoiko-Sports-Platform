@@ -145,34 +145,6 @@ const BALLS: Record<SportId, (id: string) => ReactNode> = {
   ),
 }
 
-/** The cluster of balls on the right of the overview banner. */
-export function HeroBalls({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 680 210" preserveAspectRatio="xMaxYMax meet" aria-hidden="true" focusable="false">
-      <defs>
-        <radialGradient id="hero-ball-shadow">
-          <stop offset="0" stopColor="#000" stopOpacity="0.55" />
-          <stop offset="1" stopColor="#000" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id="hero-swoosh" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#ffd400" stopOpacity="0" />
-          <stop offset="0.25" stopColor="#ffd400" />
-          <stop offset="1" stopColor="#ffe55c" />
-        </linearGradient>
-      </defs>
-      <path d="M-260 214C40 196 330 176 700 128v16C340 186 60 206-260 222z" fill="url(#hero-swoosh)" />
-      <ellipse cx="380" cy="200" rx="300" ry="12" fill="url(#hero-ball-shadow)" />
-      <Ball sport="basketball" x={150} y={36} size={146} />
-      <Ball sport="soccer" x={392} y={30} size={160} />
-      <Ball sport="football" x={28} y={72} size={160} rotate={-24} />
-      <Ball sport="baseball" x={262} y={112} size={92} />
-      <Ball sport="ice-hockey" x={330} y={140} size={86} />
-      <Ball sport="cricket" x={506} y={116} size={88} />
-      <Ball sport="tennis" x={584} y={112} size={88} />
-    </svg>
-  )
-}
-
 const THUMB_BACKGROUNDS: Record<SportId, ReactNode> = {
   football: (
     <>

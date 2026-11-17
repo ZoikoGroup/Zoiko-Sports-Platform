@@ -1,13 +1,13 @@
 /**
  * Static demo data for the Organizer Overview, in the exact shape the API will
  * return (types.ts). Dates are placed relative to "now" so the dashboard always
- * looks current: upcoming events stay upcoming and "Today" stays today.
+ * looks current: upcoming events stay upcoming and "10 min ago" stays recent.
  * Every name here is fictional.
  */
 import { zonedTimeToUtc } from '../format'
-import type { DecisionUpdate, OrganizerOverview, UpcomingEvent } from './types'
+import type { ActivityPoint, OrganizerOverview, UpcomingEvent } from './types'
 
-/** An event `daysAhead` days from now at a local wall time in its own zone. */
+/** `daysAhead` days from now at a local wall time in the event's zone. */
 function at(now: Date, daysAhead: number, hour: number, minute: number, timeZone: string): string {
   const day = new Date(now.getTime() + daysAhead * 86_400_000)
   const [y, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' })
@@ -17,142 +17,87 @@ function at(now: Date, daysAhead: number, hour: number, minute: number, timeZone
   return zonedTimeToUtc(y, m - 1, d, hour, minute, timeZone).toISOString()
 }
 
-/** Started on the hour before now, so it is genuinely under way. */
-function startedRecently(now: Date): string {
-  const start = new Date(now.getTime() - 90 * 60_000)
-  start.setUTCMinutes(0, 0, 0)
-  return start.toISOString()
+const minutesAgo = (now: Date, minutes: number) => new Date(now.getTime() - minutes * 60_000).toISOString()
+
+/** A multi-day event: starts `from` days ahead at `hour`, ends `days` later in the evening. */
+function event(
+  now: Date,
+  base: Omit<UpcomingEvent, 'startsAt' | 'endsAt'>,
+  from: number,
+  days: number,
+  hour: number,
+): UpcomingEvent {
+  return {
+    ...base,
+    startsAt: at(now, from, hour, 0, base.timeZone),
+    endsAt: at(now, from + days, 21, 0, base.timeZone),
+  }
 }
 
-const minutesAgo = (now: Date, minutes: number) => new Date(now.getTime() - minutes * 60_000).toISOString()
+/** Twelve monthly totals ending with the current month. */
+function activityMonths(now: Date): ActivityPoint[] {
+  const values = [61, 70, 66, 78, 84, 80, 52, 94, 97, 126, 128, 138]
+  return values.map((competitions, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (values.length - 1 - i), 1)
+    return { month: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, competitions }
+  })
+}
 
 export function buildMockOverview(now = new Date()): OrganizerOverview {
   const upcomingEvents: UpcomingEvent[] = [
-    {
-      id: 'evt-nafs',
-      name: 'North America Pro Football Showcase',
-      sport: 'football',
-      region: 'north-america',
-      city: 'Los Angeles',
-      country: 'United States',
-      startsAt: at(now, 2, 19, 0, 'America/Los_Angeles'),
-      timeZone: 'America/Los_Angeles',
-      status: 'ready',
-    },
-    {
-      id: 'evt-gbs',
-      name: 'Global Basketball Series',
-      sport: 'basketball',
-      region: 'asia',
-      city: 'Tokyo',
-      country: 'Japan',
-      startsAt: startedRecently(now),
-      timeZone: 'Asia/Tokyo',
-      status: 'in-progress',
-    },
-    {
-      id: 'evt-wcq',
-      name: 'World Cricket Qualifier',
-      sport: 'cricket',
-      region: 'asia',
-      city: 'Mumbai',
-      country: 'India',
-      startsAt: at(now, 4, 18, 30, 'Asia/Kolkata'),
-      timeZone: 'Asia/Kolkata',
-      status: 'preparing',
-    },
-    {
-      id: 'evt-apto',
-      name: 'Asia-Pacific Tennis Open',
-      sport: 'tennis',
-      region: 'oceania',
-      city: 'Sydney',
-      country: 'Australia',
-      startsAt: at(now, 9, 11, 0, 'Australia/Sydney'),
-      timeZone: 'Australia/Sydney',
-      status: 'scheduled',
-    },
-    {
-      id: 'evt-ecsc',
-      name: 'European Club Soccer Cup',
-      sport: 'soccer',
-      region: 'europe',
-      city: 'Madrid',
-      country: 'Spain',
-      startsAt: at(now, 12, 20, 0, 'Europe/Madrid'),
-      timeZone: 'Europe/Madrid',
-      status: 'scheduled',
-    },
-    {
-      id: 'evt-ccbc',
-      name: 'Continental Basketball Cup',
-      sport: 'basketball',
-      region: 'africa',
-      city: 'Lagos',
-      country: 'Nigeria',
-      startsAt: at(now, 18, 17, 0, 'Africa/Lagos'),
-      timeZone: 'Africa/Lagos',
-      status: 'preparing',
-    },
-    {
-      id: 'evt-casi',
-      name: 'Copa Andina Soccer Invitational',
-      sport: 'soccer',
-      region: 'south-america',
-      city: 'Buenos Aires',
-      country: 'Argentina',
-      startsAt: at(now, 26, 21, 0, 'America/Argentina/Buenos_Aires'),
-      timeZone: 'America/Argentina/Buenos_Aires',
-      status: 'scheduled',
-    },
-    {
-      id: 'evt-nihc',
-      name: 'Northern Ice Hockey Cup',
-      sport: 'ice-hockey',
-      region: 'north-america',
-      city: 'Toronto',
-      country: 'Canada',
-      startsAt: at(now, 47, 19, 30, 'America/Toronto'),
-      timeZone: 'America/Toronto',
-      status: 'scheduled',
-    },
-  ]
-
-  const recentDecisions: DecisionUpdate[] = [
-    { id: 'dec-1', summary: 'Schedule updates approved', subject: 'Global Basketball Series', decidedAt: minutesAgo(now, 38) },
-    { id: 'dec-2', summary: 'Venue readiness confirmed', subject: 'Sydney, Asia-Pacific Tennis Open', decidedAt: minutesAgo(now, 65) },
-    { id: 'dec-3', summary: 'Team registrations approved', subject: 'World Cricket Qualifier', decidedAt: minutesAgo(now, 101) },
-    { id: 'dec-4', summary: 'Officials assigned', subject: 'North America Pro Football Showcase', decidedAt: minutesAgo(now, 26 * 60) },
+    event(now, { id: 'evt-nafs', name: 'North America Pro Football Showcase', sport: 'football', region: 'north-america', city: 'Los Angeles', country: 'United States', timeZone: 'America/Los_Angeles', status: 'confirmed' }, 4, 2, 18),
+    event(now, { id: 'evt-gbs', name: 'Global Basketball Series', sport: 'basketball', region: 'asia', city: 'Tokyo', country: 'Japan', timeZone: 'Asia/Tokyo', status: 'scheduled' }, 9, 3, 15),
+    event(now, { id: 'evt-wcq', name: 'World Cricket Qualifier', sport: 'cricket', region: 'asia', city: 'Mumbai', country: 'India', timeZone: 'Asia/Kolkata', status: 'preparing' }, 18, 7, 10),
+    event(now, { id: 'evt-apto', name: 'Asia-Pacific Tennis Open', sport: 'tennis', region: 'oceania', city: 'Sydney', country: 'Australia', timeZone: 'Australia/Sydney', status: 'ready' }, 26, 5, 11),
+    event(now, { id: 'evt-ecsc', name: 'European Club Soccer Cup', sport: 'soccer', region: 'europe', city: 'Madrid', country: 'Spain', timeZone: 'Europe/Madrid', status: 'scheduled' }, 34, 4, 18),
+    event(now, { id: 'evt-ccbc', name: 'Continental Basketball Cup', sport: 'basketball', region: 'africa', city: 'Lagos', country: 'Nigeria', timeZone: 'Africa/Lagos', status: 'preparing' }, 41, 3, 16),
+    event(now, { id: 'evt-casi', name: 'Copa Andina Soccer Invitational', sport: 'soccer', region: 'south-america', city: 'Buenos Aires', country: 'Argentina', timeZone: 'America/Argentina/Buenos_Aires', status: 'scheduled' }, 52, 6, 17),
+    event(now, { id: 'evt-nihc', name: 'Northern Ice Hockey Cup', sport: 'ice-hockey', region: 'north-america', city: 'Toronto', country: 'Canada', timeZone: 'America/Toronto', status: 'scheduled' }, 63, 4, 19),
   ]
 
   return {
     generatedAt: now.toISOString(),
     hero: {
       title: 'Global Competition Operations',
-      subtitle: 'Plan, manage and deliver world-class sporting events across markets and time zones.',
+      subtitle: 'Plan, manage and deliver world-class sporting events across markets.',
     },
     kpis: [
-      { id: 'active-competitions', label: 'Active Competitions', value: 142, change: { percent: 12, comparedTo: 'prior 30 days' } },
-      { id: 'live-events', label: 'Live Events', value: 18, change: { percent: 8, comparedTo: 'prior 30 days' } },
-      { id: 'participating-organizations', label: 'Participating Organizations', value: 2847, change: { percent: 8, comparedTo: 'prior 30 days' } },
+      { id: 'active-competitions', label: 'Active Competitions', value: 142, changePercent: 8 },
+      { id: 'total-events', label: 'Total Events', value: 1248, changePercent: 12 },
+      { id: 'participating-organizations', label: 'Participating Organizations', value: 2847, changePercent: 6 },
       { id: 'countries-regions', label: 'Countries / Regions', value: 196 },
     ],
     upcomingEvents,
-    participation: [
-      { region: 'north-america', percent: 27 },
-      { region: 'south-america', percent: 10 },
-      { region: 'europe', percent: 24 },
-      { region: 'africa', percent: 7 },
-      { region: 'asia', percent: 27 },
-      { region: 'oceania', percent: 5 },
+    activity: { months: activityMonths(now), changePercent: { 6: 24, 12: 31 } },
+    participation: {
+      registeredTeams: 18420,
+      countries: 196,
+      regions: ['north-america', 'south-america', 'europe', 'africa', 'asia', 'oceania'],
+    },
+    alerts: [
+      { id: 'al-1', severity: 'critical', title: 'Venue readiness pending – 3 events', createdAt: minutesAgo(now, 0) },
+      { id: 'al-2', severity: 'warning', title: 'Registration approvals – 12 organizations', createdAt: minutesAgo(now, 120) },
+      { id: 'al-3', severity: 'warning', title: 'Schedule conflict – Event #64582', createdAt: minutesAgo(now, 240) },
     ],
-    recentDecisions,
-    actionCenter: { open: 6 },
+    tasks: {
+      totalPending: 12,
+      items: [
+        { id: 'tk-1', label: 'Approve team registrations', pending: 5, module: 'participants' },
+        { id: 'tk-2', label: 'Review venue readiness', pending: 3, module: 'venues' },
+        { id: 'tk-3', label: 'Confirm event schedules', pending: 2, module: 'fixtures' },
+      ],
+    },
+    recentUpdates: [
+      { id: 'up-1', summary: 'New organization onboarded', subject: 'Pacific Athletics Association', at: minutesAgo(now, 10) },
+      { id: 'up-2', summary: 'Event registration updated', subject: 'Global Basketball Series', at: minutesAgo(now, 32) },
+      { id: 'up-3', summary: 'Officials assigned', subject: 'North America Pro Football Showcase', at: minutesAgo(now, 95) },
+    ],
+    actionCenter: { open: 8 },
     notifications: [
       { id: 'n-1', title: 'Fixture change needs approval', detail: 'European Club Soccer Cup · kick-off moved to 20:00', createdAt: minutesAgo(now, 12), unread: true },
-      { id: 'n-2', title: 'Venue checklist overdue', detail: 'Continental Basketball Cup · 2 checks open', createdAt: minutesAgo(now, 47), unread: true },
-      { id: 'n-3', title: 'New registration request', detail: 'Copa Andina Soccer Invitational · 3 clubs', createdAt: minutesAgo(now, 140), unread: true },
-      { id: 'n-4', title: 'Schedule published', detail: 'Asia-Pacific Tennis Open · version 2', createdAt: minutesAgo(now, 60 * 22), unread: false },
+      { id: 'n-2', title: 'Venue checklist completed', detail: 'Asia-Pacific Tennis Open · all checks done', createdAt: minutesAgo(now, 47), unread: false },
+      { id: 'n-3', title: 'New registration request', detail: 'Copa Andina Soccer Invitational · 3 clubs', createdAt: minutesAgo(now, 140), unread: false },
+      { id: 'n-4', title: 'Schedule published', detail: 'Global Basketball Series · version 2', createdAt: minutesAgo(now, 60 * 22), unread: false },
     ],
   }
 }

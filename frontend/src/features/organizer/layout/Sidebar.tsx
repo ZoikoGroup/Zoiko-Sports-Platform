@@ -1,8 +1,8 @@
-import { BadgeCheck, ChevronDown, ChevronRight, Layers, X } from 'lucide-react'
+import { ChevronDown, Trophy, X } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import wordmark from '../../../assets/brand/logo-wordmark.webp'
 import { Menu } from '../components/Menu'
-import { ADDITIONAL_WORKSPACES, itemNumber, organizerPath, UTILITY_ITEMS, WORKSPACE_ITEMS, type NavItem } from '../navigation'
+import { NAV_GROUPS, organizerPath, type NavItem } from '../navigation'
 import { useOrganizerIdentity } from './useWorkspaceSwitch'
 import { WorkspaceItems } from './WorkspaceItems'
 
@@ -14,35 +14,50 @@ interface SidebarProps {
 }
 
 function NavEntry({ item, counts, onNavigate }: { item: NavItem; counts: SidebarProps['counts']; onNavigate: () => void }) {
-  const number = itemNumber(item)
   const badge = item.badge ? counts[item.badge] : undefined
   const Icon = item.icon
   return (
     <li>
       <NavLink
         to={organizerPath(item.slug)}
-        className={({ isActive }) => ['org-nav__link', item.accent && 'org-nav__link--workspace', isActive && 'is-active'].filter(Boolean).join(' ')}
+        className={({ isActive }) => ['org-nav__link', isActive && 'is-active'].filter(Boolean).join(' ')}
         onClick={onNavigate}
       >
-        <span className={item.accent ? `org-nav__tile org-nav__tile--${item.accent}` : 'org-nav__icon'}>
-          <Icon size={item.accent ? 17 : 19} aria-hidden="true" />
+        <span className="org-nav__icon">
+          <Icon size={22} aria-hidden="true" />
         </span>
-        <span className="org-nav__label">
-          {number && <span className="org-nav__number">{number}. </span>}
-          {item.label}
-        </span>
+        <span className="org-nav__label">{item.label}</span>
         {badge ? (
           <span className="org-nav__badge" aria-label={`${badge} open`}>
             {badge}
           </span>
         ) : null}
-        {item.accent && <ChevronRight className="org-nav__chevron" size={18} aria-hidden="true" />}
       </NavLink>
     </li>
   )
 }
 
-/** Plum navigation rail: brand, workspace context, the 13 modules and the other workspaces. */
+/** Brand ribbons across the foot of the rail, as in the design. */
+function SidebarSwoosh() {
+  return (
+    <svg className="org-sidebar__swoosh" viewBox="0 0 282 120" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="org-swoosh-gold" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#ffd60a" />
+          <stop offset="1" stopColor="#f5b800" />
+        </linearGradient>
+        <linearGradient id="org-swoosh-blue" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#2c6cff" />
+          <stop offset="1" stopColor="#1d4fe0" />
+        </linearGradient>
+      </defs>
+      <path d="M0 96C70 72 160 50 282 38v20C170 66 84 86 0 112Z" fill="url(#org-swoosh-gold)" />
+      <path d="M0 112C90 90 180 72 282 64v56H0Z" fill="url(#org-swoosh-blue)" opacity="0.95" />
+    </svg>
+  )
+}
+
+/** Plum navigation rail: brand, workspace switcher and the five module groups. */
 export function Sidebar({ open, onNavigate, onClose, counts }: SidebarProps) {
   const identity = useOrganizerIdentity()
 
@@ -61,12 +76,12 @@ export function Sidebar({ open, onNavigate, onClose, counts }: SidebarProps) {
         panelClassName="org-menu__panel--context"
         trigger={
           <>
-            <Layers className="org-context__icon" size={26} aria-hidden="true" />
+            <Trophy className="org-context__icon" size={34} strokeWidth={1.8} aria-hidden="true" />
             <span className="org-context__text">
-              <span className="org-context__title">Competition Workspace</span>
-              <span className="org-context__sub">Organizer · {identity.organization}</span>
+              Competition Workspace
+              <span className="visually-hidden"> · {identity.organization}</span>
             </span>
-            <ChevronDown size={18} aria-hidden="true" />
+            <ChevronDown size={22} aria-hidden="true" />
           </>
         }
       >
@@ -74,35 +89,19 @@ export function Sidebar({ open, onNavigate, onClose, counts }: SidebarProps) {
       </Menu>
 
       <nav className="org-nav" aria-label="Organizer workspace">
-        <h2 className="org-nav__heading">Organizer Workspace (01 – 13)</h2>
-        <ul className="org-nav__list">
-          {WORKSPACE_ITEMS.map((item) => (
-            <NavEntry key={item.slug} item={item} counts={counts} onNavigate={onNavigate} />
-          ))}
-        </ul>
-
-        <h2 className="org-nav__heading org-nav__heading--rule">Additional Workspaces (14 – 16)</h2>
-        <ul className="org-nav__list">
-          {ADDITIONAL_WORKSPACES.map((item) => (
-            <NavEntry key={item.slug} item={item} counts={counts} onNavigate={onNavigate} />
-          ))}
-        </ul>
-
-        <ul className="org-nav__list org-nav__list--utility">
-          {UTILITY_ITEMS.map((item) => (
-            <NavEntry key={item.slug} item={item} counts={counts} onNavigate={onNavigate} />
-          ))}
-        </ul>
+        {NAV_GROUPS.map((group) => (
+          <div key={group.title} className="org-nav__group">
+            <h2 className="org-nav__heading">{group.title}</h2>
+            <ul className="org-nav__list">
+              {group.items.map((item) => (
+                <NavEntry key={item.slug} item={item} counts={counts} onNavigate={onNavigate} />
+              ))}
+            </ul>
+          </div>
+        ))}
       </nav>
 
-      <NavLink to={organizerPath('settings')} className="org-account" onClick={onNavigate}>
-        <span className="org-account__avatar" aria-hidden="true">
-          {identity.organization.charAt(0).toUpperCase() || 'Z'}
-        </span>
-        <span className="org-account__name">{identity.organization}</span>
-        <BadgeCheck className="org-account__verified" size={20} aria-label="Active organization" />
-        <ChevronRight size={18} aria-hidden="true" />
-      </NavLink>
+      <SidebarSwoosh />
     </aside>
   )
 }

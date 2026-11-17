@@ -1,14 +1,13 @@
-import { Bell, Check, ChevronDown, CircleHelp, Globe, Layers, LogOut, Menu as MenuIcon, Monitor, Moon, Search, Sun } from 'lucide-react'
+import { Bell, Check, ChevronDown, CircleHelp, Globe, LogOut, Menu as MenuIcon, Monitor, Moon, Search, Sun } from 'lucide-react'
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useTheme, type ThemePreference } from '../../../theme/theme'
 import type { RegionId } from '../api/types'
 import { Menu } from '../components/Menu'
 import { formatRelativeDay, humanizeRole, initials, REGION_LABELS, SPORT_LABELS } from '../format'
-import { ADDITIONAL_WORKSPACES, organizerPath, UTILITY_ITEMS, WORKSPACE_ITEMS } from '../navigation'
+import { ALL_ITEMS, organizerPath } from '../navigation'
 import type { OrganizerShell } from '../shellContext'
 import { useOrganizerIdentity, useSignOut } from './useWorkspaceSwitch'
-import { WorkspaceItems } from './WorkspaceItems'
 
 interface TopbarProps {
   shell: OrganizerShell
@@ -16,6 +15,7 @@ interface TopbarProps {
 }
 
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)
+const SHORTCUT = IS_MAC ? 'Meta+K' : 'Control+K'
 
 const THEME_OPTIONS: { value: ThemePreference; label: string; icon: typeof Sun }[] = [
   { value: 'light', label: 'Light', icon: Sun },
@@ -66,7 +66,7 @@ function GlobalSearch({ shell }: { shell: OrganizerShell }) {
         detail: `Event · ${e.city}, ${e.country}`,
         to: `${organizerPath('competitions')}?event=${e.id}`,
       }))
-    const modules = [...WORKSPACE_ITEMS, ...ADDITIONAL_WORKSPACES, ...UTILITY_ITEMS]
+    const modules = ALL_ITEMS
       .filter((m) => m.label.toLowerCase().includes(q))
       .map((m) => ({ key: m.slug, label: m.label, detail: 'Page', to: organizerPath(m.slug) }))
     return [...events, ...modules].slice(0, 8)
@@ -92,7 +92,7 @@ function GlobalSearch({ shell }: { shell: OrganizerShell }) {
     >
       <Search className="org-search__icon" size={22} aria-hidden="true" />
       <label className="visually-hidden" htmlFor={`${listId}-input`}>
-        Search events, competitions, organizations and venues
+        Search competitions, events, teams, venues or organizations
       </label>
       <input
         ref={inputRef}
@@ -103,8 +103,9 @@ function GlobalSearch({ shell }: { shell: OrganizerShell }) {
         aria-expanded={showList}
         aria-controls={listId}
         aria-activedescendant={showList && results[active] ? `${listId}-${active}` : undefined}
+        aria-keyshortcuts={SHORTCUT}
         autoComplete="off"
-        placeholder="Search events, competitions, organizations, venues..."
+        placeholder="Search competitions, events, teams, venues or organizations..."
         value={query}
         onChange={(event) => {
           setQuery(event.target.value)
@@ -132,9 +133,6 @@ function GlobalSearch({ shell }: { shell: OrganizerShell }) {
           }
         }}
       />
-      <kbd className="org-search__kbd" aria-hidden="true">
-        {IS_MAC ? '⌘K' : 'Ctrl K'}
-      </kbd>
       {showList && (
         <ul className="org-search__results" id={listId} role="listbox" aria-label="Search results">
           {results.length === 0 && (
@@ -163,7 +161,7 @@ function GlobalSearch({ shell }: { shell: OrganizerShell }) {
   )
 }
 
-/** Header: search, region scope, workspace, notifications, help and the account menu. */
+/** Header: search, region scope, notifications, help and the account menu. */
 export function Topbar({ shell, onOpenNavigation }: TopbarProps) {
   const identity = useOrganizerIdentity()
   const signOut = useSignOut()
@@ -213,20 +211,6 @@ export function Topbar({ shell, onOpenNavigation }: TopbarProps) {
         </Menu>
 
         <Menu
-          label="Workspace: Organizer"
-          triggerClassName="org-select"
-          trigger={
-            <>
-              <Layers size={22} aria-hidden="true" />
-              <span className="org-select__text">Organizer</span>
-              <ChevronDown size={18} aria-hidden="true" />
-            </>
-          }
-        >
-          {(close) => <WorkspaceItems close={close} />}
-        </Menu>
-
-        <Menu
           label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
           kind="dialog"
           align="end"
@@ -235,7 +219,11 @@ export function Topbar({ shell, onOpenNavigation }: TopbarProps) {
           trigger={
             <>
               <Bell size={24} aria-hidden="true" />
-              {unread > 0 && <span className="org-icon-button__dot" aria-hidden="true" />}
+              {unread > 0 && (
+                <span className="org-icon-button__count" aria-hidden="true">
+                  {unread > 9 ? '9+' : unread}
+                </span>
+              )}
             </>
           }
         >
@@ -265,6 +253,8 @@ export function Topbar({ shell, onOpenNavigation }: TopbarProps) {
         <Link className="org-icon-button" to={organizerPath('help')} aria-label="Help & Support">
           <CircleHelp size={24} aria-hidden="true" />
         </Link>
+
+        <span className="org-topbar__rule" aria-hidden="true" />
 
         <Menu
           label={`Account: ${identity.name}`}

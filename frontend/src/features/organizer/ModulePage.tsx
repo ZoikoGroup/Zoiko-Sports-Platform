@@ -1,6 +1,6 @@
 import { ArrowLeft, Construction } from 'lucide-react'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { ADDITIONAL_WORKSPACES, findNavItem, itemNumber, organizerPath } from './navigation'
+import { findNavItem, organizerPath } from './navigation'
 import { useDocumentTitle } from './shellContext'
 
 /**
@@ -16,8 +16,7 @@ export function ModulePage() {
   if (!item || item.slug === 'overview') return <Navigate to={organizerPath('overview')} replace />
 
   const Icon = item.icon
-  const number = itemNumber(item)
-  const isWorkspace = ADDITIONAL_WORKSPACES.includes(item)
+  const isWorkspace = Boolean(item.workspace)
 
   return (
     <div className="org-module">
@@ -31,10 +30,7 @@ export function ModulePage() {
           <Icon size={30} />
         </span>
         <div>
-          <h1 className="org-module__title">
-            {number && <span className="org-module__number">{number}. </span>}
-            {item.label}
-          </h1>
+          <h1 className="org-module__title">{item.label}</h1>
           <p className="org-module__description">{item.description}</p>
         </div>
       </header>

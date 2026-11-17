@@ -11,16 +11,16 @@ export type SportId = 'football' | 'basketball' | 'cricket' | 'tennis' | 'soccer
 
 export type RegionId = 'north-america' | 'south-america' | 'europe' | 'africa' | 'asia' | 'oceania'
 
-export type EventStatus = 'ready' | 'in-progress' | 'preparing' | 'scheduled'
+export type EventStatus = 'confirmed' | 'scheduled' | 'preparing' | 'ready' | 'in-progress'
 
-export type KpiId = 'active-competitions' | 'live-events' | 'participating-organizations' | 'countries-regions'
+export type KpiId = 'active-competitions' | 'total-events' | 'participating-organizations' | 'countries-regions'
 
 export interface Kpi {
   id: KpiId
   label: string
   value: number
-  /** Percentage change against the comparison window; omitted when not meaningful. */
-  change?: { percent: number; comparedTo: string }
+  /** Percentage change against the previous period; omitted when not meaningful. */
+  changePercent?: number
 }
 
 export interface UpcomingEvent {
@@ -31,25 +31,51 @@ export interface UpcomingEvent {
   city: string
   country: string
   startsAt: string
+  endsAt: string
   timeZone: string
   status: EventStatus
 }
 
-export interface RegionShare {
-  region: RegionId
-  /** Share of participating organizations, 0–100. */
-  percent: number
+/** Competitions run per calendar month (oldest first, `month` as YYYY-MM). */
+export interface ActivityPoint {
+  month: string
+  competitions: number
 }
 
-export interface DecisionUpdate {
+export interface CompetitionActivity {
+  /** The last 12 months, oldest first. */
+  months: ActivityPoint[]
+  /** Change against the equal period before, by window length in months. */
+  changePercent: { 6: number; 12: number }
+}
+
+export interface Participation {
+  registeredTeams: number
+  countries: number
+  /** Regions with active participants, marked on the map. */
+  regions: RegionId[]
+}
+
+export interface OperationalAlert {
+  id: string
+  severity: 'critical' | 'warning'
+  title: string
+  createdAt: string
+}
+
+export interface ApprovalTask {
+  id: string
+  label: string
+  pending: number
+  /** Organizer module that handles it (route segment). */
+  module: string
+}
+
+export interface RecentUpdate {
   id: string
   summary: string
   subject: string
-  decidedAt: string
-}
-
-export interface ActionCenterSummary {
-  open: number
+  at: string
 }
 
 export interface Notification {
@@ -65,8 +91,11 @@ export interface OrganizerOverview {
   hero: { title: string; subtitle: string }
   kpis: Kpi[]
   upcomingEvents: UpcomingEvent[]
-  participation: RegionShare[]
-  recentDecisions: DecisionUpdate[]
-  actionCenter: ActionCenterSummary
+  activity: CompetitionActivity
+  participation: Participation
+  alerts: OperationalAlert[]
+  tasks: { totalPending: number; items: ApprovalTask[] }
+  recentUpdates: RecentUpdate[]
+  actionCenter: { open: number }
   notifications: Notification[]
 }
