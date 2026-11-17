@@ -1,0 +1,73 @@
+/* Sits on the stadium photo next to the language control, so it is styled for a
+   dark backdrop in both themes. Sized in em so it scales with --s-lang. */
+.theme-toggle {
+  display: flex;
+  flex: none;
+  gap: 0.12em;
+  margin: 0;
+  padding: 0.2em;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  border-radius: 999px;
+  background: rgba(4, 12, 44, 0.62);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.6);
+}
+
+.theme-toggle__option {
+  position: relative;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.86);
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.theme-toggle__option input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.theme-toggle__pill {
+  display: grid;
+  place-items: center;
+  width: 2.05em;
+  height: 2.05em;
+  border-radius: 999px;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.theme-toggle__pill svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.theme-toggle__option:hover {
+  color: #ffffff;
+}
+
+.theme-toggle__option:hover .theme-toggle__pill {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.theme-toggle__option:has(input:checked) .theme-toggle__pill {
+  background: var(--zs-yellow-400);
+  color: #11132e;
+}
+
+.theme-toggle__option:has(input:focus-visible) .theme-toggle__pill {
+  box-shadow: 0 0 0 2px #11132e, 0 0 0 4px var(--zs-yellow-300);
+}
+
+/* Touch screens: each option is at least a 44px target. */
+@media (pointer: coarse) {
+  .theme-toggle__pill {
+    width: max(2.05em, 44px);
+    height: max(2.05em, 44px);
+  }
+}

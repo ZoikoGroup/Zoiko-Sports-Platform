@@ -1,0 +1,284 @@
+/* Text fields ------------------------------------------------------------- */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-label-gap);
+}
+
+.field__label {
+  font-weight: 700;
+  font-size: var(--s-label);
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.field__control {
+  display: flex;
+  align-items: center;
+  min-height: var(--s-field-h);
+  border: 1px solid var(--field-border);
+  border-radius: var(--s-field-radius);
+  background: var(--field-bg);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.field__control:hover {
+  border-color: var(--field-border-hover);
+}
+
+.field__control:focus-within {
+  border-color: var(--zs-violet-600);
+  box-shadow: var(--focus-ring);
+}
+
+.field--invalid .field__control {
+  border-color: #e0475f;
+}
+
+.field__icon {
+  display: flex;
+  padding-left: 0.85em;
+  color: var(--ink);
+}
+
+.field__icon svg,
+.field__toggle svg {
+  width: var(--s-icon);
+  height: var(--s-icon);
+}
+
+.field__control input {
+  flex: 1;
+  align-self: stretch;
+  min-width: 0;
+  padding: 0 0.95em;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--s-field-font);
+}
+
+.field__control input::placeholder {
+  color: var(--ink-4);
+}
+
+.field__control input:focus {
+  outline: none;
+}
+
+.field__toggle {
+  display: grid;
+  place-items: center;
+  align-self: stretch;
+  min-width: 40px;
+  padding: 0 0.7em;
+  border: 0;
+  border-radius: var(--s-field-radius);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.field__hint,
+.field__error {
+  font-size: calc(var(--s-label) * 0.88);
+}
+
+.field__hint {
+  color: var(--ink-3);
+}
+
+.field__error {
+  color: #d0244a;
+}
+
+[data-theme='dark'] .field__error {
+  color: #ff9b9b;
+}
+
+/* Checkbox ---------------------------------------------------------------- */
+.checkbox {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  min-height: var(--s-row-h);
+  cursor: pointer;
+  font-size: var(--s-body);
+  color: var(--ink);
+}
+
+.checkbox input {
+  position: absolute;
+  width: var(--s-check);
+  height: var(--s-check);
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.checkbox__box {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--s-check);
+  height: var(--s-check);
+  border: 1.5px solid var(--check-border);
+  border-radius: 5px;
+  background: var(--field-bg);
+  color: transparent;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.checkbox__box svg {
+  width: 70%;
+  height: 70%;
+}
+
+.checkbox input:checked + .checkbox__box {
+  border-color: var(--zs-violet-600);
+  background: var(--zs-violet-600);
+  color: #fff;
+}
+
+.checkbox input:focus-visible + .checkbox__box {
+  box-shadow: var(--focus-ring);
+}
+
+/* Buttons ----------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  width: 100%;
+  min-height: var(--s-btn-h);
+  padding: 0 1.2em;
+  border: 0;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--s-btn-font);
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.15s, filter 0.15s;
+}
+
+.btn svg {
+  width: 1.1em;
+  height: 1.1em;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+}
+
+.btn--primary {
+  background: linear-gradient(180deg, var(--zs-yellow-300) 0%, var(--zs-yellow-400) 45%, var(--zs-yellow-500) 100%);
+  color: #11132e;
+  box-shadow:
+    0 8px 22px -10px rgba(214, 170, 0, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.btn--primary:hover:not(:disabled) {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.btn--primary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.btn--primary:disabled {
+  filter: saturate(0.75) brightness(0.92);
+}
+
+.btn--primary:focus-visible {
+  box-shadow: 0 0 0 3px #11132e, 0 0 0 6px var(--zs-yellow-300);
+}
+
+.btn--secondary {
+  border: 1px solid var(--field-border);
+  background: var(--field-bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: var(--s-body);
+}
+
+.btn--secondary:hover:not(:disabled) {
+  border-color: var(--field-border-hover);
+  background: var(--tile-hover);
+}
+
+.btn__spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Alerts ------------------------------------------------------------------ */
+.alert {
+  display: flex;
+  gap: 0.75em;
+  padding: 0.7em 0.9em;
+  border: 1px solid;
+  border-radius: var(--s-field-radius);
+  font-size: var(--s-alert-font);
+  line-height: 1.4;
+}
+
+.alert:focus {
+  outline: none;
+}
+
+.alert__icon {
+  flex: none;
+  width: 1.3em;
+  height: 1.3em;
+}
+
+.alert__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+}
+
+.alert--error {
+  border-color: var(--alert-error-border);
+  background: var(--alert-error-bg);
+  color: var(--alert-error-ink);
+}
+
+.alert--success {
+  border-color: var(--alert-success-border);
+  background: var(--alert-success-bg);
+  color: var(--alert-success-ink);
+}
+
+.alert--info {
+  border-color: var(--alert-info-border);
+  background: var(--alert-info-bg);
+  color: var(--alert-info-ink);
+}
+
+/* A text-styled button for inline actions. */
+.link-button {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--link);
+  font-weight: 700;
+  cursor: pointer;
+  text-align: left;
+}
+
+.link-button:hover {
+  color: var(--link-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

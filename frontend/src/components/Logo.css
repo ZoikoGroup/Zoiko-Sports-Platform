@@ -1,0 +1,10 @@
+/* Card wordmark (776×228 artwork). Width comes from the caller; height follows. */
+.logo-wordmark {
+  display: block;
+  aspect-ratio: 776 / 228;
+  background: url('../assets/brand/logo-wordmark-ink.webp') center / contain no-repeat;
+}
+
+[data-theme='dark'] .logo-wordmark {
+  background-image: url('../assets/brand/logo-wordmark.webp');
+}
