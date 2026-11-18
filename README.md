@@ -344,12 +344,25 @@ Copy `backend/.env.example`; every value is optional and has a safe default.
   home. This is UI routing only — organizer API endpoints must enforce access
   on the server when they are added.
 * **Organizer Workspace** (`frontend/src/features/organizer/`, loaded as its own
-  chunk): sidebar, top bar and the Overview dashboard; the other sidebar
-  modules render a "coming in a later build" page inside the same shell. The
-  dashboard reads only from `api/organizerApi.ts`, which serves static demo data
-  (`api/mockOverview.ts`) in the response shape defined in `api/types.ts`. Set
-  `VITE_ORGANIZER_DATA=api` once `GET /api/v1/organizer/overview/` returns that
-  shape; no component changes are needed.
+  chunk): sidebar, top bar, the Overview dashboard, the Action Center
+  (`/organizer/action-center`) and Competitions & Events
+  (`/organizer/competitions`: directory with search and filters, a details
+  panel, and Create Competition / Create Event forms; `?event=<id>`,
+  `?new=competition` and `?new=event` open them directly) and Fixtures &
+  Schedule (`/organizer/fixtures`: list and month calendar, conflicts, and the
+  O-11 revision workflow — propose a change, compare old/new, request
+  approval, recipient preview, publish with a reason; publication is refused
+  if the published version moved since the proposal. The rules live in
+  `fixtures/schedule.ts` and must be enforced again by the server.
+  `?fixture=<id>`, `?new=fixture`, `?competition=<id>` and
+  `?approvals=fixture` open or filter directly). The other sidebar modules
+  render a "coming in a later build" page inside the same shell. Pages read
+  only from `api/organizerApi.ts`, which serves static demo data
+  (`api/mock*.ts`) in the response shapes defined in `api/types.ts`; while it
+  does, pages say so and anything created stays in the browser tab. Set
+  `VITE_ORGANIZER_DATA=api` once `GET /api/v1/organizer/overview/`,
+  `/action-center/`, `/competitions/` and `/fixtures/` return those shapes; no
+  component changes are needed.
 * **API client** (`frontend/src/api/client.ts`): JSON over `fetch`, same-origin
   cookies, reads the `csrftoken` cookie before every unsafe request (Django
   rotates it on sign-in) and turns the backend error envelope into an `ApiError`.

@@ -15,6 +15,9 @@ import { WorkspacePage } from './pages/WorkspacePage'
 const OrganizerLayout = lazy(() => import('./features/organizer').then((m) => ({ default: m.OrganizerLayout })))
 const OverviewPage = lazy(() => import('./features/organizer').then((m) => ({ default: m.OverviewPage })))
 const ModulePage = lazy(() => import('./features/organizer').then((m) => ({ default: m.ModulePage })))
+const ActionCenterPage = lazy(() => import('./features/organizer').then((m) => ({ default: m.ActionCenterPage })))
+const CompetitionsPage = lazy(() => import('./features/organizer').then((m) => ({ default: m.CompetitionsPage })))
+const FixturesPage = lazy(() => import('./features/organizer').then((m) => ({ default: m.FixturesPage })))
 
 function Splash() {
   return (
@@ -92,6 +95,9 @@ export default function App() {
           >
             <Route index element={<Navigate to={ORGANIZER_HOME} replace />} />
             <Route path="overview" element={<OverviewPage />} />
+            <Route path="action-center" element={<ActionCenterPage />} />
+            <Route path="competitions" element={<CompetitionsPage />} />
+            <Route path="fixtures" element={<FixturesPage />} />
             <Route path=":module" element={<ModulePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/login" replace />} />

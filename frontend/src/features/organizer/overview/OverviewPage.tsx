@@ -2,7 +2,7 @@ import { CircleAlert, RefreshCw } from 'lucide-react'
 import { useDocumentTitle, useOrganizerShell } from '../shellContext'
 import { CompetitionActivity } from './CompetitionActivity'
 import { GlobalParticipation } from './GlobalParticipation'
-import { HeroBanner } from './HeroBanner'
+import { HeroBanner, OverviewHeroActions } from './HeroBanner'
 import { KpiCards } from './KpiCards'
 import { OperationalAlerts } from './OperationalAlerts'
 import { QuickActions } from './QuickActions'
@@ -63,7 +63,9 @@ export function OverviewPage() {
   const now = new Date(data.generatedAt)
   return (
     <div className="org-overview" data-testid="organizer-overview">
-      <HeroBanner title={data.hero.title} subtitle={data.hero.subtitle} />
+      <HeroBanner title={data.hero.title} subtitle={data.hero.subtitle}>
+        <OverviewHeroActions />
+      </HeroBanner>
       <KpiCards kpis={data.kpis} />
       <div className="org-overview__row org-overview__row--main">
         <UpcomingEvents events={data.upcomingEvents} generatedAt={data.generatedAt} region={region} onRegionChange={setRegion} />

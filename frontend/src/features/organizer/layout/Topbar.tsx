@@ -42,7 +42,8 @@ function GlobalSearch({ shell }: { shell: OrganizerShell }) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+      // Not while a modal dialog is open: the page behind it is inert.
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && !document.querySelector('dialog[open]')) {
         event.preventDefault()
         inputRef.current?.focus()
         inputRef.current?.select()
