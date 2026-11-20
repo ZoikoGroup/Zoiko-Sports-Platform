@@ -2,6 +2,7 @@ import { ArrowRight, CalendarDays, Check, SlidersHorizontal } from 'lucide-react
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { EventStatus, RegionId, SportId, UpcomingEvent } from '../api/types'
+import { EmptyMessage } from '../components/DataState'
 import { Menu } from '../components/Menu'
 import { SportThumb } from '../components/SportArt'
 import { formatEventRange, REGION_LABELS, SPORT_LABELS, STATUS_LABELS } from '../format'
@@ -116,7 +117,9 @@ export function UpcomingEvents({ events, generatedAt, region, onRegionChange }: 
         </Link>
       </header>
 
-      {rows.length === 0 ? (
+      {events.length === 0 ? (
+        <EmptyMessage>No upcoming events yet.</EmptyMessage>
+      ) : rows.length === 0 ? (
         <div className="org-empty">
           <p>No events match {scope}.</p>
           {(filtered || region !== 'all') && (

@@ -1,4 +1,8 @@
-/** Countries in the demo data, with the region each belongs to. */
+/**
+ * Countries the Organizer forms offer, with the region each belongs to.
+ * Reference data, not records: the list matches the flags in components/Flag.tsx
+ * and is to be replaced by the platform's agreed country/jurisdiction source.
+ */
 import type { CountryCode, RegionId } from './api/types'
 
 export interface Country {

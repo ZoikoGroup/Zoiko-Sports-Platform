@@ -1,33 +1,38 @@
-import { X } from 'lucide-react'
+import { CircleAlert, X } from 'lucide-react'
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
-import type { Fixture } from '../api/types'
+import { describeError } from '../../../api/resource'
+import type { NewFixture } from '../api/types'
 import { Dialog } from '../components/Dialog'
 import { zonedTimeToUtc } from '../format'
 
+/** A competition fixtures can be added to, and the zone its local times are entered in. */
 export interface CompetitionOption {
   id: string
   name: string
-  /** A fixture of this competition to copy sport, place and recipients from. */
-  template: Fixture
+  timeZone: string
 }
 
 interface CreateFixtureDialogProps {
   open: boolean
   competitions: CompetitionOption[]
   onClose: () => void
-  onCreate: (input: { competitionId: string; home: string; away: string; startsAt: string; venue: string }) => void
+  /** Resolves once the server has created the fixture. */
+  onCreate: (input: NewFixture) => Promise<void>
 }
 
-/** New fixture as an unpublished draft (v1); it goes through approval like any change. */
+/** New fixture as an unpublished draft; it goes through approval like any change. */
 export function CreateFixtureDialog({ open, competitions, onClose, onCreate }: CreateFixtureDialogProps) {
   const id = useId()
-  const [competitionId, setCompetitionId] = useState(competitions[0]?.id ?? '')
+  const [chosen, setChosen] = useState('')
   const [home, setHome] = useState('')
   const [away, setAway] = useState('')
   const [date, setDate] = useState('')
   const [time, setTime] = useState('18:00')
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const template = competitions.find((c) => c.id === competitionId)?.template
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  // The list arrives from the server; default to its first competition.
+  const competition = competitions.find((c) => c.id === chosen) ?? competitions[0]
 
   function reset() {
     setHome('')
@@ -35,31 +40,40 @@ export function CreateFixtureDialog({ open, competitions, onClose, onCreate }: C
     setDate('')
     setTime('18:00')
     setErrors({})
+    setSaveError('')
   }
 
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const next: Record<string, string> = {}
+    if (!competition) next.competition = 'Choose a competition.'
     if (!home.trim()) next.home = 'Enter the home team or player.'
     if (!away.trim()) next.away = 'Enter the away team or player.'
     else if (home.trim().toLowerCase() === away.trim().toLowerCase()) next.away = 'Home and away must be different.'
     if (!date) next.date = 'Choose a date.'
     if (!time) next.time = 'Choose a time.'
     setErrors(next)
-    if (Object.keys(next).length || !template) {
+    if (Object.keys(next).length || !competition) {
       event.currentTarget.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
       return
     }
     const [y, m, d] = date.split('-').map(Number)
     const [h, min] = time.split(':').map(Number)
-    onCreate({
-      competitionId,
-      home: home.trim(),
-      away: away.trim(),
-      startsAt: zonedTimeToUtc(y, m - 1, d, h, min, template.timeZone).toISOString(),
-      venue: (template.revisions[0] ?? template.change)!.venue,
-    })
-    reset()
+    setSaving(true)
+    setSaveError('')
+    try {
+      await onCreate({
+        competitionId: competition.id,
+        home: home.trim(),
+        away: away.trim(),
+        startsAt: zonedTimeToUtc(y, m - 1, d, h, min, competition.timeZone).toISOString(),
+      })
+      reset()
+    } catch (failure) {
+      setSaveError(describeError(failure, "We couldn't create this fixture. Please try again."))
+    } finally {
+      setSaving(false)
+    }
   }
 
   const close = () => {
@@ -82,7 +96,7 @@ export function CreateFixtureDialog({ open, competitions, onClose, onCreate }: C
 
   return (
     <Dialog open={open} onClose={close} labelledBy={`${id}-title`}>
-      <form className="org-form" onSubmit={submit} noValidate>
+      <form className="org-form" onSubmit={submit} noValidate aria-busy={saving}>
         <header className="org-form__head">
           <h2 id={`${id}-title`}>Create Fixture</h2>
           <button type="button" className="org-icon-button" onClick={close} aria-label="Close">
@@ -93,7 +107,8 @@ export function CreateFixtureDialog({ open, competitions, onClose, onCreate }: C
           {field(
             'competition',
             'Competition',
-            <select {...aria('competition')} value={competitionId} onChange={(e) => setCompetitionId(e.target.value)}>
+            <select {...aria('competition')} value={competition?.id ?? ''} onChange={(e) => setChosen(e.target.value)}>
+              {competitions.length === 0 && <option value="">No competitions available</option>}
               {competitions.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -107,17 +122,23 @@ export function CreateFixtureDialog({ open, competitions, onClose, onCreate }: C
           {field('date', 'Local date', <input {...aria('date')} type="date" value={date} onChange={(e) => setDate(e.target.value)} />)}
           {field('time', 'Local time', <input {...aria('time')} type="time" value={time} onChange={(e) => setTime(e.target.value)} />)}
         </div>
-        {template && (
+        {competition && (
           <p className="org-form__note">
-            Venue and time zone follow the competition: {(template.revisions[0] ?? template.change)!.venue}, {template.city} ({template.timeZone}). The fixture stays a draft until approved and published.
+            Date and time are local to the competition ({competition.timeZone}). The fixture stays a draft until approved and published.
+          </p>
+        )}
+        {saveError && (
+          <p className="org-banner org-banner--critical" role="alert">
+            <CircleAlert size={20} aria-hidden="true" />
+            <span>{saveError}</span>
           </p>
         )}
         <footer className="org-form__actions">
           <button type="button" className="org-btn org-btn--secondary" onClick={close}>
             Cancel
           </button>
-          <button type="submit" className="org-btn org-btn--primary">
-            Create Draft Fixture
+          <button type="submit" className="org-btn org-btn--primary" disabled={saving}>
+            {saving ? 'Saving…' : 'Create Draft Fixture'}
           </button>
         </footer>
       </form>

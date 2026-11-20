@@ -35,7 +35,7 @@ export function OrganizerLayout() {
         open={navOpen}
         onNavigate={() => setNavOpen(false)}
         onClose={() => setNavOpen(false)}
-        counts={{ actionCenter: overview.data?.actionCenter.open }}
+        counts={{ actionCenter: overview.data?.actionCenter.open ?? null }}
       />
       <div className="org-scrim" aria-hidden="true" onClick={() => setNavOpen(false)} />
       <div className="org-column">

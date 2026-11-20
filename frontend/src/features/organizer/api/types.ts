@@ -1,10 +1,13 @@
 /**
- * Response shapes for the Organizer Overview.
+ * View models for the Organizer workspace: exactly what each screen renders.
  *
- * These are the contract the UI renders. Today they are filled from
- * mockOverview.ts; when the backend endpoint exists, organizerApi.ts returns the
- * same shapes from the API and nothing in the components changes.
- * All instants are ISO-8601 strings in UTC; each event carries its own IANA zone.
+ * These describe the UI's needs, not the backend's wire format. When the API
+ * contract is agreed, organizerApi.ts maps its responses onto these shapes, so
+ * components do not change. All instants are ISO-8601 strings in UTC; anything
+ * placed in time carries its own IANA zone.
+ *
+ * `null` (or an absent key) means "not known", which the UI shows as "—" or an
+ * explanatory empty state. It never means zero.
  */
 
 export type SportId = 'football' | 'basketball' | 'cricket' | 'tennis' | 'soccer' | 'baseball' | 'ice-hockey'
@@ -13,11 +16,12 @@ export type RegionId = 'north-america' | 'south-america' | 'europe' | 'africa' |
 
 export type EventStatus = 'confirmed' | 'scheduled' | 'preparing' | 'ready' | 'in-progress'
 
+/* ----------------------------------------------------------------- Overview */
+
+/** The four headline figures of the Overview design (labels and icons live in the UI). */
 export type KpiId = 'active-competitions' | 'total-events' | 'participating-organizations' | 'countries-regions'
 
-export interface Kpi {
-  id: KpiId
-  label: string
+export interface KpiValue {
   value: number
   /** Percentage change against the previous period; omitted when not meaningful. */
   changePercent?: number
@@ -43,15 +47,15 @@ export interface ActivityPoint {
 }
 
 export interface CompetitionActivity {
-  /** The last 12 months, oldest first. */
+  /** Up to the last 12 months, oldest first. */
   months: ActivityPoint[]
   /** Change against the equal period before, by window length in months. */
-  changePercent: { 6: number; 12: number }
+  changePercent: Partial<Record<6 | 12, number>>
 }
 
 export interface Participation {
-  registeredTeams: number
-  countries: number
+  registeredTeams: number | null
+  countries: number | null
   /** Regions with active participants, marked on the map. */
   regions: RegionId[]
 }
@@ -88,15 +92,15 @@ export interface Notification {
 
 export interface OrganizerOverview {
   generatedAt: string
-  hero: { title: string; subtitle: string }
-  kpis: Kpi[]
+  kpis: Partial<Record<KpiId, KpiValue>>
   upcomingEvents: UpcomingEvent[]
-  activity: CompetitionActivity
-  participation: Participation
+  activity: CompetitionActivity | null
+  participation: Participation | null
   alerts: OperationalAlert[]
-  tasks: { totalPending: number; items: ApprovalTask[] }
+  tasks: { totalPending: number | null; items: ApprovalTask[] }
   recentUpdates: RecentUpdate[]
-  actionCenter: { open: number }
+  /** Open items for the sidebar badge; null hides the badge. */
+  actionCenter: { open: number | null }
   notifications: Notification[]
 }
 
@@ -138,11 +142,17 @@ export interface Deadline {
   module: string
 }
 
+/** Totals across everything, not only the rows sent. */
+export interface ActionSummary {
+  actions: number
+  approvals: number
+  deadlines: number
+  alerts: number
+}
+
 export interface ActionCenterData {
   generatedAt: string
-  hero: { title: string; subtitle: string }
-  /** Totals across everything, not only the rows sent. */
-  summary: { actions: number; approvals: number; deadlines: number; alerts: number }
+  summary: ActionSummary | null
   /** Highest priority first, then soonest due. */
   queue: ActionItem[]
   approvals: ApprovalGroup[]
@@ -154,7 +164,7 @@ export interface ActionCenterData {
 
 export type CountryCode = 'US' | 'CA' | 'AR' | 'ES' | 'NG' | 'JP' | 'IN' | 'AU'
 
-/** Competition lifecycle, in order. */
+/** Competition lifecycle, in order (pending confirmation of the agreed lifecycle). */
 export type CompetitionStatus = 'draft' | 'scheduled' | 'preparing' | 'active' | 'completed'
 
 export type CompetitionEventStatus = 'confirmed' | 'planning' | 'draft'
@@ -204,12 +214,30 @@ export interface AttentionItem {
 
 export interface CompetitionsData {
   generatedAt: string
-  hero: { eyebrow: string; title: string; subtitle: string }
   /** Organization-wide count; the directory lists the competitions you manage. */
-  activeCompetitions: number
+  activeCompetitions: number | null
   competitions: Competition[]
   attention: AttentionItem[]
   updates: RecentUpdate[]
+}
+
+/** What the Create Competition form collects. Dates are calendar days as entered (YYYY-MM-DD). */
+export interface NewCompetition {
+  name: string
+  sport: SportId
+  country: CountryCode
+  startDate: string
+  endDate: string
+}
+
+/** What the Create Event form collects. */
+export interface NewCompetitionEvent {
+  competitionId: string
+  name: string
+  venue: string
+  /** Calendar day as entered (YYYY-MM-DD). */
+  date: string
+  status: CompetitionEventStatus
 }
 
 /* ------------------------------------------------------ Fixtures & Schedule */
@@ -246,6 +274,12 @@ export interface FixtureRecipient {
   name: string
 }
 
+/**
+ * What the signed-in user may do with a fixture right now. Decided by the
+ * server from their role and event authority; the UI only shows what is allowed.
+ */
+export type FixtureAction = 'propose' | 'request-approval' | 'approve' | 'discard'
+
 export interface Fixture {
   id: string
   competitionId: string
@@ -265,6 +299,7 @@ export interface Fixture {
   /** Marked as a key match on the calendar. */
   key?: boolean
   recipients: FixtureRecipient[]
+  allowedActions: FixtureAction[]
 }
 
 export interface ScheduleConflict {
@@ -275,13 +310,44 @@ export interface ScheduleConflict {
   detail: string
 }
 
+export interface FixtureSummary {
+  total: number
+  confirmed: number
+  pendingReview: number
+  conflicts: number
+}
+
 export interface FixturesData {
   generatedAt: string
-  hero: { eyebrow: string; title: string; subtitle: string }
   /** Organization-wide totals; the list shows your upcoming fixtures. */
-  summary: { total: number; confirmed: number; pendingReview: number; conflicts: number }
+  summary: FixtureSummary | null
   fixtures: Fixture[]
   conflicts: ScheduleConflict[]
   /** Days (YYYY-MM-DD) when a competition event starts, for the calendar. */
   eventDays: string[]
+}
+
+/** What the Create Fixture form collects. */
+export interface NewFixture {
+  competitionId: string
+  home: string
+  away: string
+  /** UTC instant of the local date and time entered, in the competition's zone. */
+  startsAt: string
+}
+
+/** A proposed new time and/or venue for a published fixture. */
+export interface FixtureChangeInput {
+  /** The published version the change is proposed against. */
+  baseVersion: number
+  startsAt: string
+  venue: string
+  reason: string
+}
+
+/** Approval and publication of a change awaiting approval. */
+export interface PublishInput {
+  /** The published version the approver reviewed; publication must fail if it moved. */
+  expectedVersion: number
+  reason: string
 }

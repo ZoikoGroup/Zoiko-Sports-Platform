@@ -1,6 +1,7 @@
 import { ChartNoAxesColumn, ChevronDown } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
 import type { CompetitionActivity as Activity } from '../api/types'
+import { EmptyMessage } from '../components/DataState'
 import { formatCount, formatMonth } from '../format'
 
 const SPANS = [6, 12] as const
@@ -31,15 +32,57 @@ function yTicks(max: number) {
   return { top, ticks }
 }
 
-export function CompetitionActivity({ activity }: { activity: Activity }) {
+export function CompetitionActivity({ activity }: { activity: Activity | null }) {
   const [span, setSpan] = useState<Span>(6)
   const [active, setActive] = useState<number | null>(null)
   const { ref, width } = useWidth<HTMLDivElement>()
   const selectId = useId()
   const tableId = useId()
 
-  const points = activity.months.slice(-span)
-  const change = activity.changePercent[span]
+  const points = activity?.months.slice(-span) ?? []
+  const change = activity?.changePercent[span]
+
+  const head = (
+    <header className="org-card__head">
+      <ChartNoAxesColumn className="org-card__icon" size={26} strokeWidth={2.4} aria-hidden="true" />
+      <h2 id="org-activity-title" className="org-card__title">
+        Competition Activity
+      </h2>
+      <span className="org-period">
+        <label htmlFor={selectId} className="visually-hidden">
+          Period
+        </label>
+        <select
+          id={selectId}
+          value={span}
+          disabled={points.length === 0}
+          onChange={(event) => {
+            setSpan(Number(event.target.value) as Span)
+            setActive(null)
+          }}
+        >
+          {SPANS.map((w) => (
+            <option key={w} value={w}>
+              Last {w} Months
+            </option>
+          ))}
+        </select>
+        <ChevronDown size={16} aria-hidden="true" />
+      </span>
+    </header>
+  )
+
+  if (points.length === 0) {
+    return (
+      <section className="org-card org-activity" aria-labelledby="org-activity-title">
+        {head}
+        <div className="org-activity__plot" ref={ref}>
+          <EmptyMessage className="org-activity__empty">No competition activity recorded yet.</EmptyMessage>
+        </div>
+      </section>
+    )
+  }
+
   const { top, ticks } = yTicks(Math.max(...points.map((p) => p.competitions)))
 
   const plotW = Math.max(0, width - PAD.left - PAD.right)
@@ -69,46 +112,24 @@ export function CompetitionActivity({ activity }: { activity: Activity }) {
 
   const first = points[0]
   const last = points[points.length - 1]
-  const summary = `Competitions per month, ${formatMonth(first.month, true)} to ${formatMonth(last.month, true)}: from ${first.competitions} to ${last.competitions}, ${change >= 0 ? 'up' : 'down'} ${Math.abs(change)}% on the previous ${span} months.`
+  const trend = change === undefined ? '' : `, ${change >= 0 ? 'up' : 'down'} ${Math.abs(change)}% on the previous ${span} months`
+  const summary = `Competitions per month, ${formatMonth(first.month, true)} to ${formatMonth(last.month, true)}: from ${first.competitions} to ${last.competitions}${trend}.`
   const tip = active === null ? null : points[active]
 
   return (
     <section className="org-card org-activity" aria-labelledby="org-activity-title">
-      <header className="org-card__head">
-        <ChartNoAxesColumn className="org-card__icon" size={26} strokeWidth={2.4} aria-hidden="true" />
-        <h2 id="org-activity-title" className="org-card__title">
-          Competition Activity
-        </h2>
-        <span className="org-period">
-          <label htmlFor={selectId} className="visually-hidden">
-            Period
-          </label>
-          <select
-            id={selectId}
-            value={span}
-            onChange={(event) => {
-              setSpan(Number(event.target.value) as Span)
-              setActive(null)
-            }}
-          >
-            {SPANS.map((w) => (
-              <option key={w} value={w}>
-                Last {w} Months
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={16} aria-hidden="true" />
-        </span>
-      </header>
+      {head}
 
       <div className="org-activity__plot" ref={ref}>
-        <p className={`org-activity__badge${change < 0 ? ' is-down' : ''}`}>
-          <strong>
-            {change >= 0 ? '+' : '−'}
-            {Math.abs(change)}%
-          </strong>
-          <span>vs. prior {span} months</span>
-        </p>
+        {change !== undefined && (
+          <p className={`org-activity__badge${change < 0 ? ' is-down' : ''}`}>
+            <strong>
+              {change >= 0 ? '+' : '−'}
+              {Math.abs(change)}%
+            </strong>
+            <span>vs. prior {span} months</span>
+          </p>
+        )}
         {width > 0 && (
           <svg
             width={width}

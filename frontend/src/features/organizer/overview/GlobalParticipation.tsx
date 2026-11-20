@@ -1,7 +1,8 @@
 import { Globe, UsersRound } from 'lucide-react'
 import type { Participation, RegionId } from '../api/types'
 import { REGION_PINS, WORLD_DOTS_PATH, WORLD_DOT_STEP, WORLD_VIEWBOX } from '../components/worldMap'
-import { formatCount, REGION_LABELS } from '../format'
+import { Metric } from '../components/DataState'
+import { REGION_LABELS } from '../format'
 
 const PIN_KEY: Record<RegionId, keyof typeof REGION_PINS> = {
   'north-america': 'northAmerica',
@@ -12,8 +13,11 @@ const PIN_KEY: Record<RegionId, keyof typeof REGION_PINS> = {
   oceania: 'oceania',
 }
 
-export function GlobalParticipation({ participation, region }: { participation: Participation; region: RegionId | 'all' }) {
-  const regions = participation.regions.map((r) => REGION_LABELS[r]).join(', ')
+export function GlobalParticipation({ participation, region }: { participation: Participation | null; region: RegionId | 'all' }) {
+  const marked = participation?.regions ?? []
+  const label = marked.length
+    ? `World map marking regions with participants: ${marked.map((r) => REGION_LABELS[r]).join(', ')}`
+    : 'World map; no participating regions to mark'
   return (
     <section className="org-card org-participation" aria-labelledby="org-participation-title">
       <header className="org-card__head">
@@ -26,10 +30,10 @@ export function GlobalParticipation({ participation, region }: { participation: 
         className="org-map"
         viewBox={`0 0 ${WORLD_VIEWBOX.width} ${WORLD_VIEWBOX.height}`}
         role="img"
-        aria-label={`World map marking regions with participants: ${regions}`}
+        aria-label={label}
       >
         <path d={WORLD_DOTS_PATH} className="org-map__dots" strokeWidth={WORLD_DOT_STEP * 0.62} />
-        {participation.regions.map((r) => {
+        {marked.map((r) => {
           const [x, y] = REGION_PINS[PIN_KEY[r]]
           const dim = region !== 'all' && region !== r
           return (
@@ -46,7 +50,9 @@ export function GlobalParticipation({ participation, region }: { participation: 
           <UsersRound size={26} aria-hidden="true" />
           <dt className="visually-hidden">Registered teams</dt>
           <dd>
-            <strong>{formatCount(participation.registeredTeams)}</strong>
+            <strong>
+              <Metric value={participation?.registeredTeams} />
+            </strong>
             <span aria-hidden="true">Registered Teams</span>
           </dd>
         </div>
@@ -54,7 +60,9 @@ export function GlobalParticipation({ participation, region }: { participation: 
           <Globe size={26} aria-hidden="true" />
           <dt className="visually-hidden">Countries and regions</dt>
           <dd>
-            <strong>{formatCount(participation.countries)}</strong>
+            <strong>
+              <Metric value={participation?.countries} />
+            </strong>
             <span aria-hidden="true">Countries / Regions</span>
           </dd>
         </div>

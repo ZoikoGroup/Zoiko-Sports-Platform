@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronLeft, ChevronRight, Layers, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { Competition, CompetitionStatus, RegionId, SportId } from '../api/types'
+import { EmptyMessage } from '../components/DataState'
 import { Flag } from '../components/Flag'
 import { countryName } from '../countries'
 import { SportThumb } from '../components/SportArt'
@@ -119,7 +120,9 @@ export function CompetitionDirectory({ competitions, region, onRegionChange, onO
         />
       </div>
 
-      {rows.length === 0 ? (
+      {competitions.length === 0 ? (
+        <EmptyMessage>No competitions yet. Use Create Competition to add the first one.</EmptyMessage>
+      ) : rows.length === 0 ? (
         <div className="org-empty">
           <p>No competitions match these filters.</p>
           {anyFilter && (

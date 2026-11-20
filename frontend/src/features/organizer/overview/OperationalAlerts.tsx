@@ -1,14 +1,15 @@
 import { ArrowRight, CircleAlert, TriangleAlert, type LucideIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import type { OperationalAlert } from '../api/types'
+import { EmptyMessage } from '../components/DataState'
 import { formatAgo } from '../format'
 import { organizerPath } from '../navigation'
 
 interface OperationalAlertsProps {
   alerts: OperationalAlert[]
   now: Date
-  /** Where "View All" leads, and the count shown beside it. */
-  viewAll?: { to: string; count?: number }
+  /** Where "View All" leads, and the count shown beside it (omitted when unknown). */
+  viewAll?: { to: string; count?: number | null }
   /** Header icon (the Action Center uses a bell). */
   icon?: LucideIcon
 }
@@ -22,11 +23,11 @@ export function OperationalAlerts({ alerts, now, viewAll = { to: organizerPath('
           Operational Alerts
         </h2>
         <Link className="org-card__link" to={viewAll.to}>
-          View All{viewAll.count !== undefined && ` (${viewAll.count})`} <ArrowRight size={18} aria-hidden="true" />
+          View All{typeof viewAll.count === 'number' && ` (${viewAll.count})`} <ArrowRight size={18} aria-hidden="true" />
         </Link>
       </header>
       {alerts.length === 0 ? (
-        <p className="org-empty">No open alerts.</p>
+        <EmptyMessage>No open alerts.</EmptyMessage>
       ) : (
         <ul className="org-list">
           {alerts.slice(0, 3).map((alert) => (

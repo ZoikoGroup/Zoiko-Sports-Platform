@@ -1,12 +1,12 @@
 import { ArrowRight, CircleAlert, History, Send, TriangleAlert, Users, X } from 'lucide-react'
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
-import type { Fixture } from '../api/types'
+import type { Fixture, FixtureChangeInput, PublishInput } from '../api/types'
 import { Dialog } from '../components/Dialog'
 import { Flag } from '../components/Flag'
 import { SportThumb } from '../components/SportArt'
 import { countryName } from '../countries'
 import { formatAgo, formatLocalDateTime, localDay, zonedTimeToUtc } from '../format'
-import { canApprove, current, FIXTURE_STATUS_LABELS, fixtureStatus, publishedVersion } from './schedule'
+import { allows, current, FIXTURE_STATUS_LABELS, fixtureStatus, publishedVersion } from './schedule'
 
 const viewerTime = (iso: string) =>
   new Date(iso).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' })
@@ -16,18 +16,20 @@ const both = (iso: string, timeZone: string) => {
   return `${date}, ${time}`
 }
 
+/** An action sent to the server: resolves with null when accepted, or the reason it was not. */
+type Outcome = Promise<string | null>
+
 interface FixtureDrawerProps {
   fixture: Fixture | null
-  role: string
   now: Date
   onClose: () => void
-  onPropose: (fixture: Fixture, input: { startsAt: string; venue: string; reason: string }) => string | null
-  onRequestApproval: (fixture: Fixture) => string | null
-  onPublish: (fixture: Fixture, input: { expectedVersion: number; reason: string }) => string | null
-  onDiscard: (fixture: Fixture) => void
+  onPropose: (fixture: Fixture, input: FixtureChangeInput) => Outcome
+  onRequestApproval: (fixture: Fixture) => Outcome
+  onPublish: (fixture: Fixture, input: PublishInput) => Outcome
+  onDiscard: (fixture: Fixture) => Outcome
 }
 
-function ProposeForm({ fixture, onSubmit, onCancel }: { fixture: Fixture; onSubmit: (input: { startsAt: string; venue: string; reason: string }) => string | null; onCancel: () => void }) {
+function ProposeForm({ fixture, onSubmit, onCancel }: { fixture: Fixture; onSubmit: (input: FixtureChangeInput) => Outcome; onCancel: () => void }) {
   const id = useId()
   const now = current(fixture)
   const [date, setDate] = useState(localDay(now.startsAt, fixture.timeZone))
@@ -35,12 +37,13 @@ function ProposeForm({ fixture, onSubmit, onCancel }: { fixture: Fixture; onSubm
   const [venue, setVenue] = useState(now.venue)
   const [reason, setReason] = useState('')
   const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
   const reasonRef = useRef<HTMLTextAreaElement>(null)
 
   // The form opens inside the panel: start where the user must type.
   useEffect(() => reasonRef.current?.focus(), [])
 
-  function submit(event: FormEvent) {
+  async function submit(event: FormEvent) {
     event.preventDefault()
     if (!date || !time) return setError('Choose a date and time.')
     if (!venue.trim()) return setError('Enter the venue.')
@@ -49,11 +52,13 @@ function ProposeForm({ fixture, onSubmit, onCancel }: { fixture: Fixture; onSubm
     const [h, min] = time.split(':').map(Number)
     const startsAt = zonedTimeToUtc(y, m - 1, d, h, min, fixture.timeZone).toISOString()
     if (startsAt === now.startsAt && venue.trim() === now.venue) return setError('Change the time or the venue to propose a new version.')
-    setError(onSubmit({ startsAt, venue: venue.trim(), reason }) ?? '')
+    setSaving(true)
+    setError((await onSubmit({ baseVersion: publishedVersion(fixture), startsAt, venue: venue.trim(), reason: reason.trim() })) ?? '')
+    setSaving(false)
   }
 
   return (
-    <form className="org-propose" onSubmit={submit} noValidate aria-labelledby={`${id}-title`}>
+    <form className="org-propose" onSubmit={submit} noValidate aria-labelledby={`${id}-title`} aria-busy={saving}>
       <h3 id={`${id}-title`} className="org-drawer__section">
         Propose a change
       </h3>
@@ -84,8 +89,8 @@ function ProposeForm({ fixture, onSubmit, onCancel }: { fixture: Fixture; onSubm
         <button type="button" className="org-btn org-btn--secondary" onClick={onCancel}>
           Cancel
         </button>
-        <button type="submit" className="org-btn org-btn--primary">
-          Save proposal
+        <button type="submit" className="org-btn org-btn--primary" disabled={saving}>
+          {saving ? 'Saving…' : 'Save proposal'}
         </button>
       </div>
     </form>
@@ -93,10 +98,11 @@ function ProposeForm({ fixture, onSubmit, onCancel }: { fixture: Fixture; onSubm
 }
 
 /** Side panel: published version, a proposed change and its approval, history and recipients. */
-export function FixtureDrawer({ fixture, role, now, onClose, onPropose, onRequestApproval, onPublish, onDiscard }: FixtureDrawerProps) {
+export function FixtureDrawer({ fixture, now, onClose, onPropose, onRequestApproval, onPublish, onDiscard }: FixtureDrawerProps) {
   const [proposing, setProposing] = useState(false)
   const [reason, setReason] = useState<string | null>(null)
   const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
   const f = fixture
   const close = () => {
     setProposing(false)
@@ -111,13 +117,23 @@ export function FixtureDrawer({ fixture, role, now, onClose, onPropose, onReques
   const live = current(f)
   const published = f.revisions[0]
   const change = f.change
-  const approver = canApprove(role)
+  const approver = allows(f, 'approve')
   const publishReason = reason ?? change?.reason ?? ''
   const changed = (a: string, b: string) => (a === b ? undefined : 'is-changed')
 
+  /** Runs one server action at a time and shows why it was refused, if it was. */
+  async function run(action: () => Outcome, after?: () => void) {
+    setBusy(true)
+    setError('')
+    const refused = await action()
+    setBusy(false)
+    if (refused) setError(refused)
+    else after?.()
+  }
+
   return (
     <Dialog open onClose={close} labelledBy="fx-drawer-title" variant="drawer">
-      <div className="org-drawer" data-testid="fixture-drawer">
+      <div className="org-drawer" data-testid="fixture-drawer" aria-busy={busy}>
         <header className="org-drawer__head">
           <SportThumb sport={f.sport} className="org-drawer__thumb" />
           <div className="org-drawer__heading">
@@ -233,18 +249,13 @@ export function FixtureDrawer({ fixture, role, now, onClose, onPropose, onReques
             )}
 
             <div className="org-form__actions">
-              <button
-                type="button"
-                className="org-btn org-btn--secondary"
-                onClick={() => {
-                  setError('')
-                  onDiscard(f)
-                }}
-              >
-                {published ? 'Discard change' : 'Discard fixture'}
-              </button>
-              {change.state === 'proposed' && (
-                <button type="button" className="org-btn org-btn--primary" onClick={() => setError(onRequestApproval(f) ?? '')}>
+              {allows(f, 'discard') && (
+                <button type="button" className="org-btn org-btn--secondary" disabled={busy} onClick={() => void run(() => onDiscard(f))}>
+                  {published ? 'Discard change' : 'Discard fixture'}
+                </button>
+              )}
+              {change.state === 'proposed' && allows(f, 'request-approval') && (
+                <button type="button" className="org-btn org-btn--primary" disabled={busy} onClick={() => void run(() => onRequestApproval(f))}>
                   <Send size={18} aria-hidden="true" /> Request approval
                 </button>
               )}
@@ -253,10 +264,13 @@ export function FixtureDrawer({ fixture, role, now, onClose, onPropose, onReques
                   <button
                     type="button"
                     className="org-btn org-btn--primary"
+                    disabled={busy}
                     onClick={() => {
-                      const result = onPublish(f, { expectedVersion: publishedVersion(f), reason: publishReason })
-                      setError(result ?? '')
-                      if (!result) setReason(null)
+                      if (!publishReason.trim()) return setError('Give a reason for publishing this change.')
+                      void run(
+                        () => onPublish(f, { expectedVersion: publishedVersion(f), reason: publishReason.trim() }),
+                        () => setReason(null),
+                      )
                     }}
                   >
                     Approve &amp; publish v{change.version}
@@ -270,18 +284,20 @@ export function FixtureDrawer({ fixture, role, now, onClose, onPropose, onReques
           <ProposeForm
             fixture={f}
             onCancel={() => setProposing(false)}
-            onSubmit={(input) => {
-              const result = onPropose(f, input)
-              if (!result) setProposing(false)
-              return result
+            onSubmit={async (input) => {
+              const refused = await onPropose(f, input)
+              if (!refused) setProposing(false)
+              return refused
             }}
           />
         ) : (
-          <div className="org-drawer__actions org-drawer__actions--top">
-            <button type="button" className="org-btn org-btn--primary" onClick={() => setProposing(true)}>
-              Propose change <ArrowRight size={18} aria-hidden="true" />
-            </button>
-          </div>
+          allows(f, 'propose') && (
+            <div className="org-drawer__actions org-drawer__actions--top">
+              <button type="button" className="org-btn org-btn--primary" onClick={() => setProposing(true)}>
+                Propose change <ArrowRight size={18} aria-hidden="true" />
+              </button>
+            </div>
+          )
         )}
 
         <section aria-labelledby="fx-history-title">

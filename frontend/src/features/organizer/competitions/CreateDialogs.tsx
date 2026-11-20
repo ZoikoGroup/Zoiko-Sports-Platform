@@ -1,13 +1,13 @@
-import { X } from 'lucide-react'
+import { CircleAlert, X } from 'lucide-react'
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
-import type { Competition, CompetitionEvent, CompetitionEventStatus, CountryCode, SportId } from '../api/types'
+import { describeError } from '../../../api/resource'
+import type { Competition, CompetitionEventStatus, CountryCode, NewCompetition, NewCompetitionEvent, SportId } from '../api/types'
 import { Dialog } from '../components/Dialog'
 import { COUNTRIES } from '../countries'
 import { SPORT_LABELS } from '../format'
 import { EVENT_STATUS_LABELS } from './shared'
 
-/** Noon UTC on a picked day, so the date reads the same in every time zone. */
-const middayUtc = (date: string) => new Date(`${date}T12:00:00Z`).toISOString()
+const SAVE_FAILED = "We couldn't save this. Please try again."
 
 function Field({ id, label, error, children }: { id: string; label: string; error?: string; children: ReactNode }) {
   return (
@@ -23,9 +23,21 @@ function Field({ id, label, error, children }: { id: string; label: string; erro
   )
 }
 
-function DialogFrame({ titleId, title, onClose, onSubmit, submitLabel, children }: { titleId: string; title: string; onClose: () => void; onSubmit: (event: FormEvent<HTMLFormElement>) => void; submitLabel: string; children: ReactNode }) {
+interface DialogFrameProps {
+  titleId: string
+  title: string
+  onClose: () => void
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void
+  submitLabel: string
+  saving: boolean
+  /** Why the server did not accept the submission. */
+  error: string
+  children: ReactNode
+}
+
+function DialogFrame({ titleId, title, onClose, onSubmit, submitLabel, saving, error, children }: DialogFrameProps) {
   return (
-    <form className="org-form" onSubmit={onSubmit} noValidate>
+    <form className="org-form" onSubmit={onSubmit} noValidate aria-busy={saving}>
       <header className="org-form__head">
         <h2 id={titleId}>{title}</h2>
         <button type="button" className="org-icon-button" onClick={onClose} aria-label="Close">
@@ -33,17 +45,41 @@ function DialogFrame({ titleId, title, onClose, onSubmit, submitLabel, children 
         </button>
       </header>
       <div className="org-form__grid">{children}</div>
-      <p className="org-form__note">Demo data: what you add here stays in this tab until you reload.</p>
+      {error && (
+        <p className="org-banner org-banner--critical" role="alert">
+          <CircleAlert size={20} aria-hidden="true" />
+          <span>{error}</span>
+        </p>
+      )}
       <footer className="org-form__actions">
         <button type="button" className="org-btn org-btn--secondary" onClick={onClose}>
           Cancel
         </button>
-        <button type="submit" className="org-btn org-btn--primary">
-          {submitLabel}
+        <button type="submit" className="org-btn org-btn--primary" disabled={saving}>
+          {saving ? 'Saving…' : submitLabel}
         </button>
       </footer>
     </form>
   )
+}
+
+/** Sends a validated form to the server; the dialog stays open with the reason if it is not accepted. */
+function useSubmission<T>(save: (input: T) => Promise<void>, onSaved: () => void) {
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  async function submit(input: T) {
+    setSaving(true)
+    setError('')
+    try {
+      await save(input)
+      onSaved()
+    } catch (failure) {
+      setError(describeError(failure, SAVE_FAILED))
+    } finally {
+      setSaving(false)
+    }
+  }
+  return { saving, error, submit, clearError: () => setError('') }
 }
 
 const SPORTS = Object.keys(SPORT_LABELS) as SportId[]
@@ -51,7 +87,8 @@ const SPORTS = Object.keys(SPORT_LABELS) as SportId[]
 interface CreateCompetitionProps {
   open: boolean
   onClose: () => void
-  onCreate: (input: Pick<Competition, 'name' | 'sport' | 'country' | 'startsAt' | 'endsAt'>) => void
+  /** Resolves once the server has created the competition. */
+  onCreate: (input: NewCompetition) => Promise<void>
 }
 
 export function CreateCompetitionDialog({ open, onClose, onCreate }: CreateCompetitionProps) {
@@ -62,6 +99,7 @@ export function CreateCompetitionDialog({ open, onClose, onCreate }: CreateCompe
   const [start, setStart] = useState('')
   const [end, setEnd] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const submission = useSubmission(onCreate, reset)
 
   function reset() {
     setName('')
@@ -82,18 +120,18 @@ export function CreateCompetitionDialog({ open, onClose, onCreate }: CreateCompe
       event.currentTarget.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
       return
     }
-    onCreate({ name: name.trim(), sport, country, startsAt: middayUtc(start), endsAt: middayUtc(end) })
-    reset()
+    void submission.submit({ name: name.trim(), sport, country, startDate: start, endDate: end })
   }
 
   const close = () => {
     reset()
+    submission.clearError()
     onClose()
   }
 
   return (
     <Dialog open={open} onClose={close} labelledBy={`${id}-title`}>
-      <DialogFrame titleId={`${id}-title`} title="Create Competition" onClose={close} onSubmit={submit} submitLabel="Create as Draft">
+      <DialogFrame titleId={`${id}-title`} title="Create Competition" onClose={close} onSubmit={submit} submitLabel="Create as Draft" saving={submission.saving} error={submission.error}>
         <Field id={`${id}-name`} label="Competition name" error={errors.name}>
           <input id={`${id}-name`} value={name} onChange={(e) => setName(e.target.value)} aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? `${id}-name-error` : undefined} data-autofocus />
         </Field>
@@ -130,17 +168,21 @@ interface CreateEventProps {
   open: boolean
   competitions: Competition[]
   onClose: () => void
-  onCreate: (competitionId: string, event: Omit<CompetitionEvent, 'id'>) => void
+  /** Resolves once the server has created the event. */
+  onCreate: (input: NewCompetitionEvent) => Promise<void>
 }
 
 export function CreateEventDialog({ open, competitions, onClose, onCreate }: CreateEventProps) {
   const id = useId()
-  const [competitionId, setCompetitionId] = useState(competitions[0]?.id ?? '')
+  const [chosen, setChosen] = useState('')
   const [name, setName] = useState('')
   const [venue, setVenue] = useState('')
   const [date, setDate] = useState('')
   const [status, setStatus] = useState<CompetitionEventStatus>('planning')
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const submission = useSubmission(onCreate, reset)
+  // The list arrives from the server; default to its first competition.
+  const competitionId = competitions.some((c) => c.id === chosen) ? chosen : (competitions[0]?.id ?? '')
 
   function reset() {
     setName('')
@@ -162,20 +204,27 @@ export function CreateEventDialog({ open, competitions, onClose, onCreate }: Cre
       event.currentTarget.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
       return
     }
-    onCreate(competitionId, { name: name.trim(), venue: venue.trim(), startsAt: middayUtc(date), status })
-    reset()
+    void submission.submit({ competitionId, name: name.trim(), venue: venue.trim(), date, status })
   }
 
   const close = () => {
     reset()
+    submission.clearError()
     onClose()
   }
 
   return (
     <Dialog open={open} onClose={close} labelledBy={`${id}-title`}>
-      <DialogFrame titleId={`${id}-title`} title="Create Event" onClose={close} onSubmit={submit} submitLabel="Create Event">
+      <DialogFrame titleId={`${id}-title`} title="Create Event" onClose={close} onSubmit={submit} submitLabel="Create Event" saving={submission.saving} error={submission.error}>
         <Field id={`${id}-competition`} label="Competition" error={errors.competition}>
-          <select id={`${id}-competition`} value={competitionId} onChange={(e) => setCompetitionId(e.target.value)} aria-invalid={Boolean(errors.competition)}>
+          <select
+            id={`${id}-competition`}
+            value={competitionId}
+            onChange={(e) => setChosen(e.target.value)}
+            aria-invalid={Boolean(errors.competition)}
+            aria-describedby={errors.competition ? `${id}-competition-error` : undefined}
+          >
+            {competitions.length === 0 && <option value="">No competitions available</option>}
             {competitions.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}

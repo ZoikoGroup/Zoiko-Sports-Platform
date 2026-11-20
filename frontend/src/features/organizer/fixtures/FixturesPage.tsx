@@ -1,34 +1,22 @@
-import {
-  ArrowRight,
-  CalendarCheck,
-  CalendarDays,
-  CalendarPlus,
-  CircleAlert,
-  CircleCheck,
-  Clock,
-  MapPin,
-  RefreshCw,
-  TriangleAlert,
-  Upload,
-  X,
-  type LucideIcon,
-} from 'lucide-react'
+import { ArrowRight, CalendarCheck, CalendarDays, CalendarPlus, CircleAlert, CircleCheck, Clock, MapPin, TriangleAlert, Upload, X, type LucideIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { USING_DEMO_DATA } from '../api/organizerApi'
-import type { Fixture, FixturesData, RegionId, ScheduleConflict, SportId } from '../api/types'
+import { describeError } from '../../../api/resource'
+import { emptyFixtures } from '../api/empty'
+import { organizerApi } from '../api/organizerApi'
+import type { Fixture, FixtureSummary, FixturesData, RegionId, ScheduleConflict, SportId } from '../api/types'
 import { useFixtures } from '../api/useOrganizerOverview'
+import { EmptyMessage, Metric, NotConnectedNotice, ResourceView } from '../components/DataState'
 import { Dialog } from '../components/Dialog'
 import { SportThumb } from '../components/SportArt'
 import { countryName } from '../countries'
-import { formatCount, formatLocalDateTime, localDay, REGION_LABELS, SPORT_LABELS } from '../format'
-import { useOrganizerIdentity } from '../layout/useWorkspaceSwitch'
+import { formatLocalDateTime, localDay, REGION_LABELS, SPORT_LABELS } from '../format'
 import { HeroBanner } from '../overview/HeroBanner'
 import { useDocumentTitle, useOrganizerShell } from '../shellContext'
 import { CreateFixtureDialog, type CompetitionOption } from './CreateFixtureDialog'
 import { FixtureDrawer } from './FixtureDrawer'
 import { ScheduleCalendar } from './ScheduleCalendar'
-import { current, discard, FIXTURE_STATUS_LABELS, fixtureStatus, proposeChange, publish, requestApproval, ScheduleError, type FixtureStatus } from './schedule'
+import { current, FIXTURE_STATUS_LABELS, fixtureStatus, type FixtureStatus } from './schedule'
 
 const PERIODS = [
   { value: '7', label: 'Next 7 Days' },
@@ -38,25 +26,24 @@ const PERIODS = [
 ]
 const PREVIEW_ROWS = 5
 
-/** Run a scheduling rule; return its message if it refuses, null on success. */
-function attempt(run: () => void): string | null {
-  try {
-    run()
-    return null
-  } catch (error) {
-    if (error instanceof ScheduleError) return error.message
-    throw error
-  }
-}
+/** The design's four summary figures, in order; the values are organization totals from the server. */
+const SUMMARY_CARDS: { key: keyof FixtureSummary; label: string; icon: LucideIcon; tone: string; testId: string }[] = [
+  { key: 'total', label: 'Total Fixtures', icon: CalendarDays, tone: 'violet', testId: 'total' },
+  { key: 'confirmed', label: 'Confirmed', icon: CircleCheck, tone: 'green', testId: 'confirmed' },
+  { key: 'pendingReview', label: 'Pending Review', icon: CalendarCheck, tone: 'blue', testId: 'pending' },
+  { key: 'conflicts', label: 'Schedule Conflicts', icon: TriangleAlert, tone: 'red', testId: 'conflicts' },
+]
 
-function SummaryCards({ cards }: { cards: { key: string; value: number; label: string; icon: LucideIcon; tone: string }[] }) {
+function SummaryCards({ summary }: { summary: FixtureSummary | null }) {
   return (
     <section className="org-solid-stats" aria-label="Fixture summary">
-      {cards.map(({ key, value, label, icon: IconComponent, tone }) => (
-        <article key={key} className={`org-solid-stat org-solid-stat--${tone}`} data-testid={`fx-stat-${key}`}>
+      {SUMMARY_CARDS.map(({ key, label, icon: IconComponent, tone, testId }) => (
+        <article key={key} className={`org-solid-stat org-solid-stat--${tone}`} data-testid={`fx-stat-${testId}`}>
           <IconComponent size={48} strokeWidth={1.8} aria-hidden="true" />
           <p>
-            <strong>{formatCount(value)}</strong>
+            <strong>
+              <Metric value={summary?.[key]} />
+            </strong>
             <span>{label}</span>
           </p>
         </article>
@@ -82,7 +69,7 @@ function Select({ label, value, options, onChange, accent = false }: { label: st
   )
 }
 
-function ConflictsCard({ conflicts, total, onReview, onViewAll }: { conflicts: ScheduleConflict[]; total: number; onReview: (fixtureId: string) => void; onViewAll: () => void }) {
+function ConflictsCard({ conflicts, total, onReview, onViewAll }: { conflicts: ScheduleConflict[]; total: number | undefined; onReview: (fixtureId: string) => void; onViewAll: () => void }) {
   return (
     <section className="org-card org-conflicts" aria-labelledby="fx-conflicts-title">
       <header className="org-card__head">
@@ -90,12 +77,14 @@ function ConflictsCard({ conflicts, total, onReview, onViewAll }: { conflicts: S
         <h2 id="fx-conflicts-title" className="org-card__title">
           Conflicts to Review
         </h2>
-        <button type="button" className="org-card__link org-card__link--button" onClick={onViewAll}>
-          View all {total} <ArrowRight size={18} aria-hidden="true" />
-        </button>
+        {conflicts.length > 0 && (
+          <button type="button" className="org-card__link org-card__link--button" onClick={onViewAll}>
+            View all{total !== undefined && ` ${total}`} <ArrowRight size={18} aria-hidden="true" />
+          </button>
+        )}
       </header>
       {conflicts.length === 0 ? (
-        <p className="org-empty">No open conflicts in your fixtures.</p>
+        <EmptyMessage>No open conflicts in your fixtures.</EmptyMessage>
       ) : (
         <ul className="org-conflicts__list">
           {conflicts.map((c) => (
@@ -118,10 +107,14 @@ function ConflictsCard({ conflicts, total, onReview, onViewAll }: { conflicts: S
   )
 }
 
-function FixturesView({ data }: { data: FixturesData }) {
+interface FixturesViewProps {
+  data: FixturesData
+  /** Fetches the page data again after a change the server accepted. */
+  refresh: () => Promise<FixturesData | null>
+}
+
+function FixturesView({ data, refresh }: FixturesViewProps) {
   const { region, setRegion } = useOrganizerShell()
-  const identity = useOrganizerIdentity()
-  const [fixtures, setFixtures] = useState(data.fixtures)
   const [period, setPeriod] = useState('30')
   const [sport, setSport] = useState<SportId | 'all'>('all')
   const [day, setDay] = useState<string | null>(null)
@@ -131,6 +124,7 @@ function FixturesView({ data }: { data: FixturesData }) {
   const [today] = useState(() => localDay(new Date().toISOString()))
   const [params, setParams] = useSearchParams()
   const now = useMemo(() => new Date(data.generatedAt), [data.generatedAt])
+  const { fixtures } = data
 
   const openId = params.get('fixture')
   const creating = params.get('new') === 'fixture'
@@ -150,18 +144,6 @@ function FixturesView({ data }: { data: FixturesData }) {
       },
       { replace: !push },
     )
-
-  // Summary: organization totals adjusted by what changed on this page.
-  const summary = useMemo(() => {
-    const count = (list: Fixture[], s: FixtureStatus) => list.filter((f) => fixtureStatus(f) === s).length
-    const delta = (s: FixtureStatus) => count(fixtures, s) - count(data.fixtures, s)
-    return {
-      total: data.summary.total + fixtures.length - data.fixtures.length,
-      confirmed: data.summary.confirmed + delta('confirmed'),
-      pending: data.summary.pendingReview + delta('pending') + delta('draft'),
-      conflicts: data.summary.conflicts + delta('conflict'),
-    }
-  }, [fixtures, data])
 
   const sports = [...new Set(fixtures.map((f) => f.sport))]
   const competitionName = fixtures.find((f) => f.competitionId === competitionId)?.competition
@@ -193,14 +175,29 @@ function FixturesView({ data }: { data: FixturesData }) {
     return map
   }, [fixtures, data.eventDays])
 
+  // Competitions offered by Create Fixture: those the fixture list covers, with their zone.
   const competitions: CompetitionOption[] = useMemo(() => {
     const byId = new Map<string, CompetitionOption>()
-    for (const f of fixtures) if (!byId.has(f.competitionId) && f.revisions.length) byId.set(f.competitionId, { id: f.competitionId, name: f.competition, template: f })
+    for (const f of fixtures) if (!byId.has(f.competitionId)) byId.set(f.competitionId, { id: f.competitionId, name: f.competition, timeZone: f.timeZone })
     return [...byId.values()]
   }, [fixtures])
 
-  const replace = (next: Fixture) => setFixtures((list) => list.map((f) => (f.id === next.id ? next : f)))
   const label = (f: Fixture) => `${f.home} vs. ${f.away}`
+
+  /**
+   * Sends one change to the server. On success the page shows the server's
+   * updated data; on refusal it returns the reason for the panel to display.
+   */
+  async function change(action: () => Promise<unknown>, done: string, after?: (next: FixturesData | null) => void): Promise<string | null> {
+    try {
+      await action()
+    } catch (failure) {
+      return describeError(failure, "We couldn't save this change. Please try again.")
+    }
+    setAnnouncement(done)
+    after?.(await refresh())
+    return null
+  }
 
   const visible = expanded ? rows : rows.slice(0, PREVIEW_ROWS)
   const scope = [
@@ -211,7 +208,7 @@ function FixturesView({ data }: { data: FixturesData }) {
 
   return (
     <div className="org-overview org-fx" data-testid="fixtures-page">
-      <HeroBanner eyebrow={data.hero.eyebrow} title={data.hero.title} subtitle={data.hero.subtitle} art="ball">
+      <HeroBanner eyebrow="Customer Competition Workspace" title="Fixtures & Schedule" subtitle="Every fixture, every venue, every time zone — coordinated in one place." art="ball">
         <Link className="org-btn org-btn--primary" to="?new=fixture">
           <CalendarPlus size={22} aria-hidden="true" />
           Create Fixture
@@ -226,20 +223,15 @@ function FixturesView({ data }: { data: FixturesData }) {
         </button>
       </HeroBanner>
 
+      <NotConnectedNotice />
+
       <p className="visually-hidden" role="status">
         {announcement}
       </p>
 
       <div className="org-fx__layout">
         <div className="org-fx__main">
-          <SummaryCards
-            cards={[
-              { key: 'total', value: summary.total, label: 'Total Fixtures', icon: CalendarDays, tone: 'violet' },
-              { key: 'confirmed', value: summary.confirmed, label: 'Confirmed', icon: CircleCheck, tone: 'green' },
-              { key: 'pending', value: summary.pending, label: 'Pending Review', icon: CalendarCheck, tone: 'blue' },
-              { key: 'conflicts', value: summary.conflicts, label: 'Schedule Conflicts', icon: TriangleAlert, tone: 'red' },
-            ]}
-          />
+          <SummaryCards summary={data.summary} />
 
           <section className="org-card org-fixtures" aria-labelledby="fx-list-title">
             <header className="org-card__head">
@@ -278,7 +270,9 @@ function FixturesView({ data }: { data: FixturesData }) {
               )}
             </div>
 
-            {visible.length === 0 ? (
+            {fixtures.length === 0 ? (
+              <EmptyMessage>No fixtures yet. Use Create Fixture to add the first one.</EmptyMessage>
+            ) : visible.length === 0 ? (
               <div className="org-empty">
                 <p>No fixtures match these filters.</p>
               </div>
@@ -351,8 +345,8 @@ function FixturesView({ data }: { data: FixturesData }) {
             }}
           />
           <ConflictsCard
-            conflicts={data.conflicts.filter((c) => fixtures.some((f) => f.id === c.fixtureId && f.conflict))}
-            total={summary.conflicts}
+            conflicts={data.conflicts}
+            total={data.summary?.conflicts}
             onReview={(id) => update({ fixture: id }, true)}
             onViewAll={() => {
               setDay(null)
@@ -363,72 +357,31 @@ function FixturesView({ data }: { data: FixturesData }) {
         </aside>
       </div>
 
-      {USING_DEMO_DATA && <p className="org-footnote">Sample data is illustrative and not from a live competition.</p>}
-
       <FixtureDrawer
         fixture={open}
-        role={identity.role}
         now={now}
         onClose={() => update({ fixture: null })}
-        onPropose={(f, input) =>
-          attempt(() => {
-            replace(proposeChange(f, input, identity.name))
-            setAnnouncement(`Change proposed for ${label(f)}.`)
+        onPropose={(f, input) => change(() => organizerApi.proposeFixtureChange(f.id, input), `Change proposed for ${label(f)}.`)}
+        onRequestApproval={(f) => change(() => organizerApi.requestFixtureApproval(f.id, f.change?.version ?? 0), `Approval requested for ${label(f)}.`)}
+        onPublish={(f, input) => change(() => organizerApi.publishFixtureChange(f.id, input), `${label(f)} published. Recipients will be notified.`)}
+        onDiscard={(f) =>
+          change(() => organizerApi.discardFixtureChange(f.id), `Change to ${label(f)} discarded.`, (next) => {
+            // A draft fixture the server removed has no details left to show.
+            if (next && !next.fixtures.some((x) => x.id === f.id)) update({ fixture: null })
           })
         }
-        onRequestApproval={(f) =>
-          attempt(() => {
-            replace(requestApproval(f))
-            setAnnouncement(`Approval requested for ${label(f)}.`)
-          })
-        }
-        onPublish={(f, input) =>
-          attempt(() => {
-            const next = publish(f, { ...input, role: identity.role, author: identity.name })
-            replace(next)
-            setAnnouncement(`${label(f)} published as version ${next.revisions[0].version}. Recipients will be notified.`)
-          })
-        }
-        onDiscard={(f) => {
-          const next = discard(f)
-          if (next) replace(next)
-          else {
-            setFixtures((list) => list.filter((x) => x.id !== f.id))
-            update({ fixture: null })
-          }
-          setAnnouncement(next ? `Change to ${label(f)} discarded.` : `Draft fixture ${label(f)} discarded.`)
-        }}
       />
 
       <CreateFixtureDialog
         open={creating}
         competitions={competitions}
         onClose={() => update({ new: null })}
-        onCreate={(input) => {
-          const template = competitions.find((c) => c.id === input.competitionId)!.template
-          const created: Fixture = {
-            id: `fx-new-${Date.now()}`,
-            competitionId: template.competitionId,
-            competition: template.competition,
-            sport: template.sport,
-            home: input.home,
-            away: input.away,
-            city: template.city,
-            country: template.country,
-            region: template.region,
-            timeZone: template.timeZone,
-            revisions: [],
-            change: { version: 1, baseVersion: 0, startsAt: input.startsAt, venue: input.venue, reason: 'New fixture.', author: identity.name, proposedAt: new Date().toISOString(), state: 'proposed' },
-            recipients: [
-              { role: 'Home club', name: input.home },
-              { role: 'Away club', name: input.away },
-              ...template.recipients.filter((r) => r.role === 'Venue' || r.role === 'Officials'),
-            ],
-          }
-          setFixtures((list) => [...list, created])
+        onCreate={async (input) => {
+          await organizerApi.createFixture(input)
           setPeriod('all')
           setAnnouncement(`Draft fixture ${input.home} vs. ${input.away} created.`)
-          update({ new: null, fixture: created.id })
+          update({ new: null })
+          await refresh()
         }}
       />
 
@@ -457,40 +410,29 @@ function FixturesView({ data }: { data: FixturesData }) {
   )
 }
 
+function FixturesSkeleton() {
+  return (
+    <div className="org-overview" aria-busy="true">
+      <span role="status" className="visually-hidden">
+        Loading fixtures
+      </span>
+      <div className="org-skeleton org-skeleton--hero" />
+      <div className="org-fx__layout">
+        <div className="org-skeleton org-skeleton--card-lg" />
+        <div className="org-skeleton org-skeleton--card-lg" />
+      </div>
+    </div>
+  )
+}
+
 /** Fixtures & Schedule — calendar and list, revisions, approval and publication. */
 export function FixturesPage() {
   const state = useFixtures()
   useDocumentTitle('Fixtures & Schedule')
 
-  if (state.status === 'loading') {
-    return (
-      <div className="org-overview" aria-busy="true">
-        <span role="status" className="visually-hidden">
-          Loading fixtures
-        </span>
-        <div className="org-skeleton org-skeleton--hero" />
-        <div className="org-fx__layout">
-          <div className="org-skeleton org-skeleton--card-lg" />
-          <div className="org-skeleton org-skeleton--card-lg" />
-        </div>
-      </div>
-    )
-  }
-  if (state.status === 'error') {
-    return (
-      <div className="org-overview">
-        <div className="org-card org-error" role="alert">
-          <CircleAlert size={28} aria-hidden="true" />
-          <div>
-            <h1 className="org-card__title">We couldn't load your fixtures</h1>
-            <p>{state.error}</p>
-          </div>
-          <button type="button" className="org-btn org-btn--secondary" onClick={state.reload}>
-            <RefreshCw size={18} aria-hidden="true" /> Try again
-          </button>
-        </div>
-      </div>
-    )
-  }
-  return <FixturesView data={state.data} />
+  return (
+    <ResourceView resource={state} skeleton={<FixturesSkeleton />} errorTitle="We couldn't load your fixtures" empty={emptyFixtures}>
+      {(data) => <FixturesView data={data} refresh={state.refresh} />}
+    </ResourceView>
+  )
 }

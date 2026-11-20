@@ -1290,6 +1290,17 @@
   box-shadow: var(--org-focus);
 }
 
+/* No data to chart: the message sits where the plot would be. */
+.org-activity__plot .org-activity__empty {
+  display: grid;
+  place-items: center;
+  min-height: 196px;
+  margin: 0;
+  padding: 0 18px;
+  color: var(--org-ink-3);
+  text-align: center;
+}
+
 .org-activity__badge {
   position: absolute;
   top: 0;
@@ -3607,6 +3618,22 @@
   border: 1px solid color-mix(in srgb, var(--critical) 35%, transparent);
   background: var(--pill-bg);
   color: var(--pill-ink);
+}
+
+/* Page notice while live data is not connected. */
+.org-banner--info {
+  align-items: flex-start;
+  border: 1px solid color-mix(in srgb, var(--tone-blue) 30%, transparent);
+  background: var(--org-surface);
+  color: var(--org-ink-2);
+}
+
+.org-banner--info svg {
+  color: var(--tone-blue);
+}
+
+.org-banner--info strong {
+  color: var(--org-ink);
 }
 
 .org-change {

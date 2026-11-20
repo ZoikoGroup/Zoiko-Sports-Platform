@@ -1,5 +1,5 @@
+import { useResource } from '../../../api/resource'
 import { organizerApi } from './organizerApi'
-import { useResource } from './useResource'
 
 /** The Overview data (also feeds the shell's badges and notifications). */
 export const useOrganizerOverview = () =>

@@ -7,14 +7,12 @@ import {
   CalendarPlus,
   Camera,
   ChevronRight,
-  CircleAlert,
   CircleCheck,
   ClipboardCheck,
   FileText,
   Handshake,
   List,
   Megaphone,
-  RefreshCw,
   SquareCheck,
   TriangleAlert,
   UserCheck,
@@ -26,8 +24,10 @@ import {
 import { useId, useState, type ComponentType, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { StadiumIcon } from '../../../components/icons'
-import type { ActionItem, ActionKind, ActionPriority, ApprovalGroup, ApprovalKind, Deadline } from '../api/types'
+import { emptyActionCenter } from '../api/empty'
+import type { ActionItem, ActionKind, ActionPriority, ActionSummary, ApprovalGroup, ApprovalKind, Deadline } from '../api/types'
 import { useActionCenter } from '../api/useOrganizerOverview'
+import { EmptyMessage, Metric, NotConnectedNotice, ResourceView } from '../components/DataState'
 import { organizerPath } from '../navigation'
 import { HeroBanner } from '../overview/HeroBanner'
 import { OperationalAlerts } from '../overview/OperationalAlerts'
@@ -85,22 +85,31 @@ function CardHead({ icon: IconComponent, title, id, children }: { icon: Icon; ti
 }
 
 interface SummaryCard {
-  key: string
+  key: keyof ActionSummary
   label: string
-  value: number
   icon: Icon
   tone: 'violet' | 'blue' | 'orange' | 'red'
   target: string
 }
 
-function SummaryCards({ cards }: { cards: SummaryCard[] }) {
+/** The design's four summary cards, in order; their figures come from the server. */
+const SUMMARY_CARDS: SummaryCard[] = [
+  { key: 'actions', label: 'Actions Requiring Attention', icon: SquareCheck, tone: 'violet', target: 'ac-queue' },
+  { key: 'approvals', label: 'Pending Approvals', icon: CircleCheck, tone: 'blue', target: 'ac-approvals' },
+  { key: 'deadlines', label: 'Upcoming Deadlines', icon: CalendarCheck, tone: 'orange', target: 'ac-deadlines' },
+  { key: 'alerts', label: 'Operational Alerts', icon: TriangleAlert, tone: 'red', target: 'ac-alerts' },
+]
+
+function SummaryCards({ summary }: { summary: ActionSummary | null }) {
   return (
     <section className="org-kpis" aria-label="Action summary">
-      {cards.map(({ key, label, value, icon: IconComponent, tone, target }) => (
+      {SUMMARY_CARDS.map(({ key, label, icon: IconComponent, tone, target }) => (
         <a key={key} href={`#${target}`} className={`org-kpi org-kpi--${tone} org-kpi--link`} data-testid={`summary-${key}`}>
           <IconComponent className="org-kpi__icon" size={46} strokeWidth={1.7} aria-hidden="true" />
           <span className="org-kpi__body">
-            <span className="org-kpi__value">{value}</span>
+            <span className="org-kpi__value">
+              <Metric value={summary?.[key]} />
+            </span>
             <span className="org-kpi__label">{label}</span>
           </span>
           <ChevronRight className="org-kpi__go" size={24} aria-hidden="true" />
@@ -110,15 +119,18 @@ function SummaryCards({ cards }: { cards: SummaryCard[] }) {
   )
 }
 
-function ActionQueue({ items, total }: { items: ActionItem[]; total: number }) {
+function ActionQueue({ items, total }: { items: ActionItem[]; total: number | undefined }) {
   const [expanded, setExpanded] = useState(false)
   const listId = useId()
   const rows = expanded ? items : items.slice(0, PREVIEW_ROWS)
   return (
     <section id="ac-queue" className="org-card org-ac-card" aria-labelledby="ac-queue-title" tabIndex={-1}>
       <CardHead icon={List} title="Action Queue (Prioritized)" id="ac-queue-title">
-        <ExpandToggle total={total} expanded={expanded} onToggle={() => setExpanded((v) => !v)} controls={listId} />
+        {items.length > PREVIEW_ROWS && (
+          <ExpandToggle total={total ?? items.length} expanded={expanded} onToggle={() => setExpanded((v) => !v)} controls={listId} />
+        )}
       </CardHead>
+      {items.length === 0 && <EmptyMessage>No actions need your attention.</EmptyMessage>}
       <ul id={listId} className="org-ac-list">
         {rows.map((item) => {
           const IconComponent = ACTION_ICONS[item.kind]
@@ -144,15 +156,18 @@ function ActionQueue({ items, total }: { items: ActionItem[]; total: number }) {
   )
 }
 
-function ApprovalRequests({ groups, total }: { groups: ApprovalGroup[]; total: number }) {
+function ApprovalRequests({ groups, total }: { groups: ApprovalGroup[]; total: number | undefined }) {
   const [expanded, setExpanded] = useState(false)
   const listId = useId()
   const rows = expanded ? groups : groups.slice(0, PREVIEW_ROWS)
   return (
     <section id="ac-approvals" className="org-card org-ac-card" aria-labelledby="ac-approvals-title" tabIndex={-1}>
       <CardHead icon={CircleCheck} title="Approval Requests" id="ac-approvals-title">
-        <ExpandToggle total={total} expanded={expanded} onToggle={() => setExpanded((v) => !v)} controls={listId} />
+        {groups.length > PREVIEW_ROWS && (
+          <ExpandToggle total={total ?? groups.length} expanded={expanded} onToggle={() => setExpanded((v) => !v)} controls={listId} />
+        )}
       </CardHead>
+      {groups.length === 0 && <EmptyMessage>No approval requests are waiting.</EmptyMessage>}
       <ul id={listId} className="org-ac-list">
         {rows.map((group) => {
           const IconComponent = APPROVAL_ICONS[group.kind]
@@ -175,15 +190,18 @@ function ApprovalRequests({ groups, total }: { groups: ApprovalGroup[]; total: n
   )
 }
 
-function UpcomingDeadlines({ deadlines, total }: { deadlines: Deadline[]; total: number }) {
+function UpcomingDeadlines({ deadlines, total }: { deadlines: Deadline[]; total: number | undefined }) {
   const [expanded, setExpanded] = useState(false)
   const listId = useId()
   const rows = expanded ? deadlines : deadlines.slice(0, PREVIEW_DEADLINES)
   return (
     <section id="ac-deadlines" className="org-card org-ac-card" aria-labelledby="ac-deadlines-title" tabIndex={-1}>
       <CardHead icon={CalendarClock} title="Upcoming Deadlines" id="ac-deadlines-title">
-        <ExpandToggle total={total} expanded={expanded} onToggle={() => setExpanded((v) => !v)} controls={listId} />
+        {deadlines.length > PREVIEW_DEADLINES && (
+          <ExpandToggle total={total ?? deadlines.length} expanded={expanded} onToggle={() => setExpanded((v) => !v)} controls={listId} />
+        )}
       </CardHead>
+      {deadlines.length === 0 && <EmptyMessage>No upcoming deadlines.</EmptyMessage>}
       <ul id={listId} className="org-list org-deadlines">
         {rows.map((deadline) => (
           <li key={deadline.id}>
@@ -256,53 +274,34 @@ export function ActionCenterPage() {
   const state = useActionCenter()
   useDocumentTitle('Action Center')
 
-  if (state.status === 'loading') return <ActionCenterSkeleton />
-  if (state.status === 'error') {
-    return (
-      <div className="org-overview">
-        <div className="org-card org-error" role="alert">
-          <CircleAlert size={28} aria-hidden="true" />
-          <div>
-            <h1 className="org-card__title">We couldn't load the Action Center</h1>
-            <p>{state.error}</p>
-          </div>
-          <button type="button" className="org-btn org-btn--secondary" onClick={state.reload}>
-            <RefreshCw size={18} aria-hidden="true" /> Try again
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  const data = state.data
-  const { summary } = data
   return (
-    <div className="org-overview org-ac" data-testid="action-center">
-      <HeroBanner title={data.hero.title} subtitle={data.hero.subtitle} />
-      <SummaryCards
-        cards={[
-          { key: 'actions', label: 'Actions Requiring Attention', value: summary.actions, icon: SquareCheck, tone: 'violet', target: 'ac-queue' },
-          { key: 'approvals', label: 'Pending Approvals', value: summary.approvals, icon: CircleCheck, tone: 'blue', target: 'ac-approvals' },
-          { key: 'deadlines', label: 'Upcoming Deadlines', value: summary.deadlines, icon: CalendarCheck, tone: 'orange', target: 'ac-deadlines' },
-          { key: 'alerts', label: 'Operational Alerts', value: summary.alerts, icon: TriangleAlert, tone: 'red', target: 'ac-alerts' },
-        ]}
-      />
-      <div className="org-ac-grid">
-        <ActionQueue items={data.queue} total={summary.actions} />
-        <ApprovalRequests groups={data.approvals} total={summary.approvals} />
-        <div className="org-ac-side">
-          <div id="ac-alerts" tabIndex={-1} className="org-ac-anchor">
-            <OperationalAlerts
-              alerts={data.alerts}
-              now={new Date(data.generatedAt)}
-              viewAll={{ to: organizerPath('event-day'), count: summary.alerts }}
-              icon={Bell}
-            />
+    <ResourceView resource={state} skeleton={<ActionCenterSkeleton />} errorTitle="We couldn't load the Action Center" empty={emptyActionCenter}>
+      {(data) => {
+        const { summary } = data
+        return (
+          <div className="org-overview org-ac" data-testid="action-center">
+            <HeroBanner title="Action Center" subtitle="Your operational hub for tasks, approvals and time-critical actions." />
+            <NotConnectedNotice />
+            <SummaryCards summary={summary} />
+            <div className="org-ac-grid">
+              <ActionQueue items={data.queue} total={summary?.actions} />
+              <ApprovalRequests groups={data.approvals} total={summary?.approvals} />
+              <div className="org-ac-side">
+                <div id="ac-alerts" tabIndex={-1} className="org-ac-anchor">
+                  <OperationalAlerts
+                    alerts={data.alerts}
+                    now={new Date(data.generatedAt)}
+                    viewAll={{ to: organizerPath('event-day'), count: summary?.alerts }}
+                    icon={Bell}
+                  />
+                </div>
+                <UpcomingDeadlines deadlines={data.deadlines} total={summary?.deadlines} />
+              </div>
+            </div>
+            <QuickActionsBar />
           </div>
-          <UpcomingDeadlines deadlines={data.deadlines} total={summary.deadlines} />
-        </div>
-      </div>
-      <QuickActionsBar />
-    </div>
+        )
+      }}
+    </ResourceView>
   )
 }

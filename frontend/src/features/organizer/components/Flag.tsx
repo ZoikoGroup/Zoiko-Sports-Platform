@@ -1,5 +1,5 @@
 /**
- * Simplified national flags (24×16) for the countries in the demo data.
+ * Simplified national flags (24×16) for the countries in countries.ts.
  * Drawn in SVG because Windows does not render flag emoji.
  */
 import type { ReactNode } from 'react'

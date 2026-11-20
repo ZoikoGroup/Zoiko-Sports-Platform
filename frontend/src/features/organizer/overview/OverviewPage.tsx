@@ -1,4 +1,5 @@
-import { CircleAlert, RefreshCw } from 'lucide-react'
+import { emptyOverview } from '../api/empty'
+import { NotConnectedNotice, ResourceView } from '../components/DataState'
 import { useDocumentTitle, useOrganizerShell } from '../shellContext'
 import { CompetitionActivity } from './CompetitionActivity'
 import { GlobalParticipation } from './GlobalParticipation'
@@ -41,43 +42,31 @@ export function OverviewPage() {
   const { overview, region, setRegion } = useOrganizerShell()
   useDocumentTitle('Overview')
 
-  if (overview.status === 'loading') return <OverviewSkeleton />
-  if (overview.status === 'error') {
-    return (
-      <div className="org-overview">
-        <div className="org-card org-error" role="alert">
-          <CircleAlert size={28} aria-hidden="true" />
-          <div>
-            <h1 className="org-card__title">We couldn't load your overview</h1>
-            <p>{overview.error}</p>
-          </div>
-          <button type="button" className="org-btn org-btn--secondary" onClick={overview.reload}>
-            <RefreshCw size={18} aria-hidden="true" /> Try again
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  const data = overview.data
-  const now = new Date(data.generatedAt)
   return (
-    <div className="org-overview" data-testid="organizer-overview">
-      <HeroBanner title={data.hero.title} subtitle={data.hero.subtitle}>
-        <OverviewHeroActions />
-      </HeroBanner>
-      <KpiCards kpis={data.kpis} />
-      <div className="org-overview__row org-overview__row--main">
-        <UpcomingEvents events={data.upcomingEvents} generatedAt={data.generatedAt} region={region} onRegionChange={setRegion} />
-        <CompetitionActivity activity={data.activity} />
-        <GlobalParticipation participation={data.participation} region={region} />
-      </div>
-      <div className="org-overview__row org-overview__row--ops">
-        <OperationalAlerts alerts={data.alerts} now={now} />
-        <TasksApprovals totalPending={data.tasks.totalPending} items={data.tasks.items} />
-        <QuickActions />
-      </div>
-      <RecentUpdates items={data.recentUpdates} now={now} />
-    </div>
+    <ResourceView resource={overview} skeleton={<OverviewSkeleton />} errorTitle="We couldn't load your overview" empty={emptyOverview}>
+      {(data) => {
+        const now = new Date(data.generatedAt)
+        return (
+          <div className="org-overview" data-testid="organizer-overview">
+            <HeroBanner title="Global Competition Operations" subtitle="Plan, manage and deliver world-class sporting events across markets.">
+              <OverviewHeroActions />
+            </HeroBanner>
+            <NotConnectedNotice />
+            <KpiCards kpis={data.kpis} />
+            <div className="org-overview__row org-overview__row--main">
+              <UpcomingEvents events={data.upcomingEvents} generatedAt={data.generatedAt} region={region} onRegionChange={setRegion} />
+              <CompetitionActivity activity={data.activity} />
+              <GlobalParticipation participation={data.participation} region={region} />
+            </div>
+            <div className="org-overview__row org-overview__row--ops">
+              <OperationalAlerts alerts={data.alerts} now={now} />
+              <TasksApprovals totalPending={data.tasks.totalPending} items={data.tasks.items} />
+              <QuickActions />
+            </div>
+            <RecentUpdates items={data.recentUpdates} now={now} />
+          </div>
+        )
+      }}
+    </ResourceView>
   )
 }
