@@ -9,7 +9,9 @@ def _send(to: str, subject: str, body: str) -> None:
 
 
 def send_password_reset(user) -> None:
-    link = f"{settings.FRONTEND_URL}/reset-password?uid={encode_uid(user)}&token={password_reset_token.make_token(user)}"
+    link = (
+        f"{settings.FRONTEND_URL}/reset-password?uid={encode_uid(user)}&token={password_reset_token.make_token(user)}"
+    )
     _send(
         user.email,
         "Reset your Zoiko Sports password",
@@ -21,7 +23,9 @@ def send_password_reset(user) -> None:
 
 
 def send_verification(user) -> None:
-    link = f"{settings.FRONTEND_URL}/verify-email?uid={encode_uid(user)}&token={email_verification_token.make_token(user)}"
+    link = (
+        f"{settings.FRONTEND_URL}/verify-email?uid={encode_uid(user)}&token={email_verification_token.make_token(user)}"
+    )
     _send(
         user.email,
         "Verify your Zoiko Sports account",

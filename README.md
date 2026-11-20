@@ -17,7 +17,15 @@ The repository has exactly two top-level folders:
 
 ## Quick start
 
-**Develop** — API in Docker, frontend with hot reload (PowerShell, Docker Desktop running):
+**Once per machine** — create `backend/.env` from `backend/.env.example` and set
+`POSTGRES_PASSWORD` to a long random value (the database refuses to start
+without it):
+
+```powershell
+cd "<path-to-repo>\backend"; Copy-Item .env.example .env; python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+**Develop** — API and PostgreSQL in Docker, frontend with hot reload (PowerShell, Docker Desktop running):
 
 ```powershell
 cd "<path-to-repo>\backend"; docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d backend; cd ..\frontend; npm run dev
@@ -66,7 +74,7 @@ Open **http://localhost:8080/login**. Details in [§5](#5-run-with-docker) and [
  Browser ──HTTP──▶ frontend container (nginx :8080)
                    ├── /                → built React app (static files, SPA fallback)
                    └── /api /admin /static ──proxy──▶ backend container (gunicorn :8000)
-                                                       └── Django + DRF ──▶ SQLite (named volume)
+                                                       └── Django + DRF ──▶ db container (PostgreSQL 16)
 ```
 
 * **Same origin.** The browser only ever talks to one origin (nginx in Docker,
@@ -80,8 +88,14 @@ Open **http://localhost:8080/login**. Details in [§5](#5-run-with-docker) and [
   kind; Individual is a personal profile. The session records the chosen
   workspace and organization.
 * **Backend is internal.** In the full Docker stack only nginx is published; the
-  API container is reachable on the private Compose network. The development
-  override publishes it on `127.0.0.1:8000` for the Vite dev server.
+  API and database containers are reachable on the private Compose network. The
+  development override publishes the API on `127.0.0.1:8000` for the Vite dev
+  server and PostgreSQL on `127.0.0.1:5433` for host-side tools.
+* **PostgreSQL 16 only.** Every environment — Docker, development on the host,
+  backend tests, CI and the end-to-end suite — runs on PostgreSQL 16, through
+  Django's built-in psycopg connection pool.
+* **Observable.** Logs are JSON lines (Django and gunicorn alike); liveness and
+  readiness probes are at `/api/v1/health/live/` and `/api/v1/health/ready/`.
 
 ## 2. Folder structure
 
@@ -98,13 +112,25 @@ backend/
     tokens.py               single-use verification and reset tokens
     urls.py, views.py       /api/v1/auth/* endpoints
     tests.py                API + seed-command tests
+  platform_core/            shared platform pieces (no business rules)
+    logging.py              JSON log formatter (Django and gunicorn)
+    health.py, urls.py      /api/v1/health/live/ and /api/v1/health/ready/
+    management/commands/
+      wait_for_db.py        waits for PostgreSQL before migrations
+    tests.py
   config/                   Django settings, URLs, WSGI/ASGI
-  Dockerfile                API image (gunicorn, non-root)
-  docker-entrypoint.sh      secret key, migrations, optional demo seed
-  docker-compose.yml        full stack (frontend + backend)
-  docker-compose.dev.yml    development override (API on 127.0.0.1:8000 for `npm run dev`)
+    database.py             PostgreSQL settings from DATABASE_* variables
+  scripts/ci.sh             the CI pipeline (lint → types → tests → audits → image scan)
+  Dockerfile                API image (gunicorn, non-root, hash-verified dependencies)
+  docker-entrypoint.sh      secret key, wait for database, migrations, optional demo seed
+  gunicorn.conf.py          workers, timeouts, JSON access and error logs
+  docker-compose.yml        full stack (frontend + backend + PostgreSQL 16)
+  docker-compose.dev.yml    development override (API on 127.0.0.1:8000, database on 127.0.0.1:5433)
   .env.example              every supported setting, documented
-  requirements.txt
+  requirements.in / .txt    runtime dependencies / their hash-locked set
+  requirements-dev.in / .txt  development and CI tools / their hash-locked set
+  pyproject.toml            Python version, ruff, mypy and coverage settings
+  .python-version           3.12
 
 frontend/
   src/
@@ -136,18 +162,24 @@ frontend/
 | --- | --- |
 | Frontend | React 19, TypeScript 7, Vite 8, React Router 7, lucide-react icons, self-hosted Inter + Poppins (Fontsource) |
 | Styling | Plain CSS with design tokens and `data-theme` light/dark themes; no CSS framework |
-| Backend | Python 3.12, Django 5.2, Django REST Framework 3.16 |
+| Backend | Python 3.12, Django 5.2 LTS, Django REST Framework 3.18 |
 | Serving | gunicorn (API), WhiteNoise (Django admin static files), nginx (SPA + reverse proxy) |
-| Data | SQLite on a Docker named volume |
-| Testing | Django test runner (API), Playwright on Microsoft Edge (end-to-end, three viewports, both themes) |
+| Data | PostgreSQL 16 (Docker service and named volume), psycopg 3 with Django's connection pool |
+| Testing | Django test runner + coverage (API), Playwright on Microsoft Edge (end-to-end, three viewports, both themes) |
+| Quality | ruff (lint, format, security rules), mypy with Django/DRF stubs, pip-audit, Trivy image scan |
+| Dependencies | Hash-locked requirement files compiled with uv |
 | Containers | Docker, Docker Compose v2 |
 
 ## 4. Prerequisites
 
 * **Docker:** Docker Desktop (or Docker Engine) with Compose v2 — `docker compose version`.
+  Also needed for development: PostgreSQL 16 runs in Docker for the API, the
+  backend tests, CI and the end-to-end suite.
 * **Development:**
   * Node.js **20.19+ / 22+** and npm (`node --version`)
-  * Python **3.10+** (`python --version`) — only to run the API without Docker
+  * Python **3.12** — only to run the API, its tests or CI on the host. Without a
+    system Python 3.12, uv provides one: `python -m pip install --user uv`, then
+    `python -m uv python install 3.12`.
   * Microsoft Edge or Google Chrome for the end-to-end tests
 
 ## 5. Run with Docker
@@ -162,14 +194,18 @@ cd backend
 # 1. Create your local settings (never commit .env).
 cp .env.example .env               # PowerShell: Copy-Item .env.example .env
 
-# 2. Optional — demo accounts: in .env set
+# 2. Required — in .env set POSTGRES_PASSWORD to a long random value, e.g. from
+#      python -c "import secrets; print(secrets.token_urlsafe(32))"
+#    It is fixed when the database volume is first created.
+
+# 3. Optional — demo accounts: in .env set
 #      ZS_SEED_DEMO=true
 #      ZS_DEMO_PASSWORD=<a password of your choice, 10+ characters>
 
-# 3. Build the images and start the stack in the background.
+# 4. Build the images and start the stack in the background.
 docker compose up -d --build
 
-# 4. Check both services report "healthy".
+# 5. Check all three services (db, backend, frontend) report "healthy".
 docker compose ps
 ```
 
@@ -200,7 +236,7 @@ printed in the backend log (see *Inspect* below).
 | Restart everything | `docker compose restart` |
 | Restart one service | `docker compose restart backend` |
 | Stop and remove containers (keep data) | `docker compose down` |
-| Stop and **delete all data** (database, secret key) | `docker compose down -v` |
+| Stop and **delete all data** (PostgreSQL volume, secret key) | `docker compose down -v` |
 
 ### Inspect
 
@@ -217,16 +253,24 @@ printed in the backend log (see *Inspect* below).
 | Django management command | `docker compose exec backend python manage.py <command>` |
 | Create an admin user (for /admin) | `docker compose exec backend python manage.py createsuperuser` |
 | Re-run the demo seed (also resets the demo password) | `docker compose exec -T -e ZS_ALLOW_DEMO_SEED=true -e ZS_DEMO_PASSWORD="<password>" backend sh -c 'DJANGO_SECRET_KEY="${DJANGO_SECRET_KEY:-$(cat /app/data/.secret_key)}" python manage.py seed_demo'` — management commands run through `exec` must load the container's generated secret key, as the entrypoint does |
-| API health from the host | `curl http://localhost:8080/api/v1/auth/config/` |
+| Database logs | `docker compose logs -f db` |
+| SQL shell (psql) | `docker compose exec db sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"'` |
+| API liveness from the host | `curl http://localhost:8080/api/v1/health/live/` |
+| API readiness (database + migrations) | `curl http://localhost:8080/api/v1/health/ready/` |
 | Web health from the host | `curl http://localhost:8080/healthz` |
 
 ### What the stack does on start
 
-1. **backend** — the entrypoint creates a random `DJANGO_SECRET_KEY` on first
-   start (unless you set one) and keeps it on the `backend-data` volume, applies
-   migrations, optionally seeds demo data, then starts gunicorn with 3 workers
-   as an unprivileged user. Its health check calls `/api/v1/auth/config/`.
-2. **frontend** — starts only after the backend is healthy; nginx serves the
+1. **db** — PostgreSQL 16 initialises the `postgres-data` volume on first start
+   (account and database from `POSTGRES_*`, SCRAM-SHA-256 passwords) and reports
+   healthy once it accepts connections. It is not published outside Docker.
+2. **backend** — starts once the database is healthy. The entrypoint creates a
+   random `DJANGO_SECRET_KEY` on first start (unless you set one) and keeps it on
+   the `backend-data` volume, waits for the database, applies migrations,
+   optionally seeds demo data, then starts gunicorn (3 workers, JSON logs) as an
+   unprivileged user. Its health check is the readiness probe
+   `/api/v1/health/ready/`.
+3. **frontend** — starts only after the backend is healthy; nginx serves the
    app on port 8080 and proxies `/api`, `/admin` and `/static` to the backend.
 
 ## 6. Run for development
@@ -237,10 +281,12 @@ printed in the backend log (see *Inspect* below).
 cd "<path-to-repo>\backend"; docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d backend; cd ..\frontend; npm run dev
 ```
 
-Open **http://localhost:5173/login**. `backend/docker-compose.dev.yml` publishes
-the API on `127.0.0.1:8000` (the Vite dev server proxies `/api` there) and trusts
-the Vite origin for CSRF and email links. Code changes in `frontend/` appear
-instantly.
+Open **http://localhost:5173/login**. Compose starts PostgreSQL first (the API
+waits for it). `backend/docker-compose.dev.yml` publishes the API on
+`127.0.0.1:8000` (the Vite dev server proxies `/api` there) and the database on
+`127.0.0.1:5433`, and trusts the Vite origin for CSRF and email links. Code
+changes in `frontend/` appear instantly. Needs `POSTGRES_PASSWORD` in
+`backend/.env` (see *Quick start*).
 
 * First time on a machine: `npm install` in `frontend/` before `npm run dev`.
 * Demo accounts: set `$env:ZS_SEED_DEMO="true"` and
@@ -248,24 +294,33 @@ instantly.
 * Stop: `Ctrl + C` for the frontend, then in `backend/`:
   `docker compose -f docker-compose.yml -f docker-compose.dev.yml down`.
 
-### Option B — everything on the host
+### Option B — API on the host, PostgreSQL in Docker
 
 Two terminals. The Vite dev server proxies `/api` to Django on port 8000.
+Processes on the host read `backend/.env`, so with the `.env.example` defaults
+(`DATABASE_HOST=127.0.0.1`, `DATABASE_PORT=5433`) they find the database below.
 
 **Backend** (from `backend/`):
 
 ```sh
-python -m venv .venv
-.venv/Scripts/pip install -r requirements.txt     # macOS/Linux: .venv/bin/pip
+# Database only (PostgreSQL 16 on 127.0.0.1:5433).
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db
+
+# Python 3.12 virtualenv from the hash-locked development set (once).
+python -m uv venv .venv --python 3.12
+python -m uv pip sync requirements-dev.txt --python .venv/Scripts/python.exe   # macOS/Linux: .venv/bin/python
+
 .venv/Scripts/python manage.py migrate
 
-# Optional demo accounts (DEBUG is on by default locally):
-#   PowerShell:  $env:ZS_DEMO_PASSWORD = "<your password>"
-#   bash:        export ZS_DEMO_PASSWORD="<your password>"
+# Optional demo accounts (DEBUG is on by default locally): set ZS_DEMO_PASSWORD
+# in backend/.env, or in the shell before running the command.
 .venv/Scripts/python manage.py seed_demo
 
 .venv/Scripts/python manage.py runserver 127.0.0.1:8000
 ```
+
+Without uv: `py -3.12 -m venv .venv`, then
+`.venv/Scripts/python -m pip install --require-hashes -r requirements-dev.txt`.
 
 **Frontend** (from `frontend/`):
 
@@ -288,10 +343,18 @@ Verification and reset emails are printed in the backend terminal (or in
 
 ### Docker stack — `backend/.env`
 
-Copy `backend/.env.example`; every value is optional and has a safe default.
+Copy `backend/.env.example`. `POSTGRES_PASSWORD` is required; every other value
+is optional and has a safe default.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
+| `POSTGRES_PASSWORD` | — | **Required.** Database account password, fixed when the `postgres-data` volume is first created |
+| `POSTGRES_DB`, `POSTGRES_USER` | `zoiko` | Database and account created on first start |
+| `ZS_DB_PORT` | `5433` | Host port of PostgreSQL with the development override (127.0.0.1 only) |
+| `DATABASE_SSLMODE` | — | libpq `sslmode` for the API's database connection (e.g. `require` for a managed database) |
+| `ZS_DB_WAIT_SECONDS` | `60` | How long the API container waits for the database on start |
+| `GUNICORN_WORKERS`, `GUNICORN_TIMEOUT` | `3`, `30` | API worker processes and request timeout (seconds) |
+| `GUNICORN_ACCESS_LOG` | `true` | JSON access log lines (method, path without query string, status, duration) |
 | `ZS_HTTP_PORT` | `8080` | Host port of the web app |
 | `ZS_PUBLIC_ORIGIN` | `http://localhost:8080` | Origin users open; used for CSRF trust and links in emails |
 | `ZS_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Host names the API accepts |
@@ -315,7 +378,17 @@ Copy `backend/.env.example`; every value is optional and has a safe default.
 | `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Comma-separated |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated origins |
 | `DJANGO_SECURE_COOKIES` | `not DEBUG` | HTTPS-only session and CSRF cookies |
-| `DJANGO_SQLITE_PATH` | `backend/db.sqlite3` | Database file |
+| `DATABASE_HOST`, `DATABASE_PORT` | `127.0.0.1`, `5432` | PostgreSQL server (`.env.example` sets port `5433` for the Docker database) |
+| `DATABASE_NAME`, `DATABASE_USER`, `DATABASE_PASSWORD` | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | Database credentials; fall back to the container variables, then `zoiko` / empty |
+| `DATABASE_SSLMODE` | libpq default | e.g. `require`, `verify-full` |
+| `DATABASE_CONNECT_TIMEOUT` | `5` | Seconds to wait for a new connection |
+| `DATABASE_POOL` | `true` | Django's psycopg connection pool (`false` = persistent connections with health checks) |
+| `DATABASE_POOL_MIN_SIZE`, `DATABASE_POOL_MAX_SIZE`, `DATABASE_POOL_TIMEOUT` | `1`, `10`, `10` | Pool size per process and seconds to wait for a free connection |
+| `DATABASE_CONN_MAX_AGE` | `60` | Connection lifetime when the pool is off |
+| `DATABASE_TEST_NAME` | `test_<name>` | Database the test runner creates |
+| `DJANGO_READ_DOTENV` | `true` | Read `backend/.env` for host processes (real environment variables win); CI and the e2e harness set `false` |
+| `DJANGO_LOG_FORMAT` | `text` with `DEBUG`, else `json` | `json` = one JSON object per line |
+| `DJANGO_LOG_LEVEL` | `INFO` | Root log level |
 | `DJANGO_CACHE_DIR` | *(in-memory)* | Shared file cache (needed with several app-server workers) |
 | `DJANGO_NUM_PROXIES` | `0` | Reverse proxies in front of the API (throttling keys on the real client IP) |
 | `FRONTEND_URL` | `http://localhost:5173` | Base URL for links in emails |
@@ -329,7 +402,6 @@ Copy `backend/.env.example`; every value is optional and has a safe default.
 | `VITE_API_PROXY_TARGET` | `http://127.0.0.1:8000` | Where the dev server proxies `/api` |
 | `VITE_PORT` | `5173` | Dev server port |
 | `VITE_LINK_*` | — | Footer links (unset links render as plain text, never as dead links) |
-| `VITE_ORGANIZER_DATA` | — (demo data) | `api` makes the Organizer dashboard call the backend instead of using demo data |
 
 ## 8. Frontend configuration
 
@@ -350,19 +422,23 @@ Copy `backend/.env.example`; every value is optional and has a safe default.
   panel, and Create Competition / Create Event forms; `?event=<id>`,
   `?new=competition` and `?new=event` open them directly) and Fixtures &
   Schedule (`/organizer/fixtures`: list and month calendar, conflicts, and the
-  O-11 revision workflow — propose a change, compare old/new, request
-  approval, recipient preview, publish with a reason; publication is refused
-  if the published version moved since the proposal. The rules live in
-  `fixtures/schedule.ts` and must be enforced again by the server.
+  O-11 revision workflow UI — propose a change, compare old/new, request
+  approval, recipient preview, publish with a reason. The server decides
+  what is allowed (each fixture lists its `allowedActions`) and refuses a
+  publication if the published version moved since the proposal.
   `?fixture=<id>`, `?new=fixture`, `?competition=<id>` and
   `?approvals=fixture` open or filter directly). The other sidebar modules
-  render a "coming in a later build" page inside the same shell. Pages read
-  only from `api/organizerApi.ts`, which serves static demo data
-  (`api/mock*.ts`) in the response shapes defined in `api/types.ts`; while it
-  does, pages say so and anything created stays in the browser tab. Set
-  `VITE_ORGANIZER_DATA=api` once `GET /api/v1/organizer/overview/`,
-  `/action-center/`, `/competitions/` and `/fixtures/` return those shapes; no
-  component changes are needed.
+  render a "coming in a later build" page inside the same shell.
+* **Organizer data** (`frontend/src/features/organizer/api/`): there is no
+  sample data. Pages read and write only through `organizerApi.ts`, which
+  runs the operations listed in `endpoints.ts`. Every entry there is `null`
+  until the API specification defines it, so pages show their layout with
+  "—" figures, empty lists and a "Live data isn't connected yet" notice, and
+  form submissions report that saving is not available. `types.ts` holds the
+  view models the screens render (map the agreed API responses onto them in
+  `organizerApi.ts`); `empty.ts` holds the "no data" versions. Loading,
+  error, empty and not-connected states come from `components/DataState.tsx`
+  and the shared `useResource` hook in `frontend/src/api/resource.ts`.
 * **API client** (`frontend/src/api/client.ts`): JSON over `fetch`, same-origin
   cookies, reads the `csrftoken` cookie before every unsafe request (Django
   rotates it on sign-in) and turns the backend error envelope into an `ApiError`.
@@ -396,7 +472,22 @@ Base path: `/api/v1/auth/`. Every error has the shape
 
 Data model: `User` (email is the username), `Organization` (`organizer`,
 `venue`, `club`), `Membership` (user ↔ organization with role, status and
-validity window).
+validity window), stored in PostgreSQL 16.
+
+**Health probes** — base path `/api/v1/health/`; no authentication, never
+cached, `GET`/`HEAD` only. Bodies name each check and its state; failure
+details go to the server log only.
+
+| Endpoint | Answers | Use |
+| --- | --- | --- |
+| `live/` | `200 {"status": "ok"}` while the process serves requests; touches no dependency | Liveness: restart the container if it fails |
+| `ready/` | `200` when the database answers and every migration is applied; otherwise `503` with `{"status": "unavailable", "checks": {"database", "migrations"}}` | Readiness: route traffic only to ready instances (the Docker health check) |
+
+**Logging** — one JSON object per line on stdout (`timestamp`, `level`,
+`logger`, `message`, plus fields such as `status_code`); gunicorn's access lines
+add `method`, `path` (no query string), `status`, `duration_ms`. Request
+objects, bodies, cookies and headers are never logged. Set
+`DJANGO_LOG_FORMAT=text` for readable local output (the default with `DEBUG`).
 
 ## 10. Authentication workflows
 
@@ -525,15 +616,42 @@ proportions at every resolution:
 
 ## 13. Testing
 
-**Backend** (from `backend/`):
+**Backend CI pipeline** (from any folder, in Git Bash on Windows or any
+Linux/macOS shell; needs Docker and the virtualenv from §6):
 
 ```sh
-.venv/Scripts/python manage.py test accounts
+backend/scripts/ci.sh                 # everything (about 4 minutes)
+CI_SKIP_IMAGE=1 backend/scripts/ci.sh # without the image build and scan
 ```
 
-Covers sign-in to all four workspaces, refused workspaces, revoked memberships,
-anti-enumeration, unverified accounts, remember-me, CSRF, rate limiting,
-registration, verification, password reset and the demo seed command.
+Steps, each of which must pass:
+
+1. ruff lint (including security rules) and format check
+2. mypy type check (Django and DRF plugins)
+3. a throwaway PostgreSQL 16 container with a random password (or the database
+   in `DATABASE_*` when `DATABASE_HOST` is set, e.g. a CI service container)
+4. Django system checks, and a check that migrations match the models
+5. all backend tests with branch coverage (must stay at 85% or more)
+6. pip-audit on both hash-locked requirement files (no known vulnerabilities)
+7. image build, then a Trivy scan that fails on HIGH or CRITICAL vulnerabilities
+   with a fix available
+
+The script is CI-service neutral: point any CI runner at it. The tests alone,
+against the development database (§6, Option B):
+
+```sh
+.venv/Scripts/python manage.py test
+```
+
+They cover sign-in to all four workspaces, refused workspaces, revoked
+memberships, anti-enumeration, unverified accounts, remember-me, CSRF, rate
+limiting, registration, verification, password reset, the demo seed command,
+database settings, JSON logging, both health probes (including database down
+and pending migrations) and `wait_for_db`.
+
+**Changing dependencies:** edit `requirements.in` (runtime) or
+`requirements-dev.in` (tools), then regenerate the locks with the command at the
+top of each file and re-sync the virtualenv.
 
 **End-to-end** (from `frontend/`):
 
@@ -541,8 +659,9 @@ registration, verification, password reset and the demo seed command.
 npm run test:e2e
 ```
 
-Playwright starts its own throwaway backend (port 8010, fresh database, random
-demo password per run), warms it up with one real sign-in, and serves the
+Playwright starts its own throwaway backend (port 8010; a fresh PostgreSQL 16
+container with a random password, removed after the run — so Docker must be
+running; random demo password per run), warms it up with one real sign-in, and serves the
 production build with `vite preview` (port 5183) — the same bundle Docker
 ships. It then runs every journey at desktop (1600 × 900), tablet (820 × 1180)
 and mobile (390 × 844):
@@ -573,6 +692,11 @@ It uses the installed Microsoft Edge; set `E2E_BROWSER_CHANNEL=chrome` for Chrom
 | Demo accounts missing | Set `ZS_SEED_DEMO=true` and a valid `ZS_DEMO_PASSWORD`, then `docker compose up -d` (or run the seed command above). The log explains a rejected password. |
 | Code changes not visible in Docker | Images are built from source: `docker compose up -d --build`. |
 | Start over with an empty database | `docker compose down -v`, then `docker compose up -d`. |
+| `Set POSTGRES_PASSWORD in backend/.env` when starting | Create `backend/.env` from `.env.example` and set `POSTGRES_PASSWORD`. |
+| `password authentication failed` after changing `POSTGRES_PASSWORD` | The password is fixed when the volume is created. Change it back, or start over with `docker compose down -v`. |
+| `manage.py` / tests on the host cannot connect | Start the database (`docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db`) and check `DATABASE_HOST=127.0.0.1` / `DATABASE_PORT=5433` in `backend/.env`. Port 5432 is often taken by a locally installed PostgreSQL. |
+| Readiness probe answers `503` | `docker compose logs backend` names the failing check: database unreachable, or migrations not applied. |
+| End-to-end suite fails with `couldn't get a connection` | Its database container stopped responding — usually Docker itself. Check `docker version` answers; restart Docker Desktop if not. |
 | `DJANGO_SECRET_KEY must be set` locally | You set `DJANGO_DEBUG=false` without a secret key; set one or leave debug on. |
 | End-to-end tests cannot launch a browser | Install Edge, or `E2E_BROWSER_CHANNEL=chrome`, or `npx playwright install chromium` with `E2E_BROWSER_CHANNEL=`. |
 
@@ -582,7 +706,16 @@ It uses the installed Microsoft Edge; set `E2E_BROWSER_CHANNEL=chrome` for Chrom
   excluded from both Docker build contexts). No password, key or token is
   committed, logged or baked into an image; the demo seed never prints its password.
 * Containers run as unprivileged users; in the full stack only nginx is
-  published, and the development override binds the API to `127.0.0.1` only.
+  published, and the development override binds the API and database to
+  `127.0.0.1` only.
+* PostgreSQL uses SCRAM-SHA-256 password authentication and is never published
+  outside Docker in the full stack. Its password is required and has no default.
+* Every Python dependency is pinned and hash-verified (`--require-hashes`) in
+  the image and the virtualenv; CI fails on known vulnerabilities (pip-audit)
+  and on fixable HIGH/CRITICAL vulnerabilities in the image (Trivy, pinned by
+  digest).
+* Logs never contain request objects, bodies, cookies, headers or query strings;
+  health probes never reveal failure details to callers.
 * nginx adds `X-Content-Type-Options`, `X-Frame-Options: DENY`,
   `Referrer-Policy` and `Permissions-Policy` headers.
 * Serve the stack over HTTPS (terminating TLS in front of nginx) and set

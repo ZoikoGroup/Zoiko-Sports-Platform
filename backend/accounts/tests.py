@@ -17,6 +17,8 @@ API = "/api/v1/auth"
 
 
 class AuthTestCase(TestCase):
+    client: APIClient
+
     def setUp(self):
         cache.clear()  # throttle counters
         self.client = APIClient(enforce_csrf_checks=True)
@@ -38,7 +40,9 @@ class AuthTestCase(TestCase):
         return self.client.post(f"{API}/{path}/", data, format="json", **self.csrf())
 
     def login(self, email, account_type, password=PASSWORD, remember=False):
-        return self.post("login", {"email": email, "password": password, "account_type": account_type, "remember": remember})
+        return self.post(
+            "login", {"email": email, "password": password, "account_type": account_type, "remember": remember}
+        )
 
 
 class LoginWorkspaceTests(AuthTestCase):
@@ -120,7 +124,7 @@ class LoginWorkspaceTests(AuthTestCase):
 
 class RegistrationTests(AuthTestCase):
     def link_params(self):
-        body = mail.outbox[-1].body
+        body = str(mail.outbox[-1].body)
         return dict(re.findall(r"[?&](uid|token)=([^&\s]+)", body))
 
     def test_register_verify_then_sign_in(self):
@@ -150,14 +154,18 @@ class PasswordResetTests(AuthTestCase):
     def test_reset_flow(self):
         self.make_user("reset@example.com")
         self.assertEqual(self.post("password-reset", {"email": "reset@example.com"}).status_code, 202)
-        params = dict(re.findall(r"[?&](uid|token)=([^&\s]+)", mail.outbox[-1].body))
+        params = dict(re.findall(r"[?&](uid|token)=([^&\s]+)", str(mail.outbox[-1].body)))
 
         weak = self.post("password-reset/confirm", {**params, "new_password": "123"})
         self.assertEqual(weak.status_code, 400)
         self.assertIn("new_password", weak.data["error"]["fields"])
 
-        self.assertEqual(self.post("password-reset/confirm", {**params, "new_password": "Brand-New-Pass-77"}).status_code, 200)
-        self.assertEqual(self.post("password-reset/confirm", {**params, "new_password": "Another-Pass-88"}).status_code, 400)
+        self.assertEqual(
+            self.post("password-reset/confirm", {**params, "new_password": "Brand-New-Pass-77"}).status_code, 200
+        )
+        self.assertEqual(
+            self.post("password-reset/confirm", {**params, "new_password": "Another-Pass-88"}).status_code, 400
+        )
         self.assertEqual(self.login("reset@example.com", "individual", password="Brand-New-Pass-77").status_code, 200)
 
     def test_unknown_email_gets_same_response_and_no_mail(self):
@@ -207,8 +215,7 @@ class SeedDemoCommandTests(TestCase):
 
     @override_settings(DEBUG=False)
     def test_refuses_outside_debug_unless_explicitly_allowed(self):
-        with patch.dict(os.environ, {"ZS_ALLOW_DEMO_SEED": ""}):
-            with self.assertRaises(CommandError):
-                self.run_seed(ZS_DEMO_PASSWORD=PASSWORD)
+        with patch.dict(os.environ, {"ZS_ALLOW_DEMO_SEED": ""}), self.assertRaises(CommandError):
+            self.run_seed(ZS_DEMO_PASSWORD=PASSWORD)
         self.run_seed(ZS_DEMO_PASSWORD=PASSWORD, ZS_ALLOW_DEMO_SEED="true")
         self.assertTrue(User.objects.filter(email="venue@zoikosports.test").exists())

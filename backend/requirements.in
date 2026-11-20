@@ -1,0 +1,14 @@
+# Runtime dependencies (direct only). The locked, hash-pinned set is
+# requirements.txt — regenerate it after editing this file:
+#   python -m uv pip compile requirements.in --universal --python-version 3.12 --generate-hashes -o requirements.txt
+Django>=5.2.19,<5.3
+# 3.18.3+: earlier releases have published security advisories (pip-audit, Nov 2026).
+djangorestframework>=3.18.3,<3.19
+gunicorn>=23.0
+whitenoise>=6.9
+# PostgreSQL 16 driver; "pool" enables Django's built-in connection pooling.
+psycopg[binary,pool]>=3.2
+# Loads backend/.env for processes run on the host (never inside the image).
+python-dotenv>=1.0
+# Time-zone database for platforms without one (Windows).
+tzdata

@@ -1,0 +1,11 @@
+# Development and CI tools, constrained to the runtime lock so both agree.
+# Regenerate requirements-dev.txt after editing this file:
+#   python -m uv pip compile requirements-dev.in --universal --python-version 3.12 --generate-hashes -o requirements-dev.txt
+-c requirements.txt
+-r requirements.in
+ruff
+mypy
+django-stubs[compatible-mypy]
+djangorestframework-stubs[compatible-mypy]
+coverage[toml]
+pip-audit

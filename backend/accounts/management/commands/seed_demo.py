@@ -23,7 +23,10 @@ ORGANIZATIONS = {
 
 # email -> (full name, [(organization key, role)])
 USERS = {
-    "demo@zoikosports.test": ("Demo Operator", [("organizer", "competition_director"), ("venue", "venue_manager"), ("club", "club_coordinator")]),
+    "demo@zoikosports.test": (
+        "Demo Operator",
+        [("organizer", "competition_director"), ("venue", "venue_manager"), ("club", "club_coordinator")],
+    ),
     "organizer@zoikosports.test": ("Olivia Organizer", [("organizer", "competition_director")]),
     "venue@zoikosports.test": ("Victor Venue", [("venue", "venue_manager")]),
     "club@zoikosports.test": ("Casey Club", [("club", "club_coordinator")]),
@@ -44,7 +47,7 @@ class Command(BaseCommand):
         try:
             password_validation.validate_password(password)
         except ValidationError as exc:
-            raise CommandError("ZS_DEMO_PASSWORD is too weak: " + " ".join(exc.messages))
+            raise CommandError("ZS_DEMO_PASSWORD is too weak: " + " ".join(exc.messages)) from exc
 
         orgs = {}
         for key, (name, kind) in ORGANIZATIONS.items():

@@ -1,4 +1,5 @@
 from django.contrib.auth import password_validation
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
 from .models import AccountType, Membership, User
@@ -33,8 +34,8 @@ class RegisterSerializer(serializers.Serializer):
         candidate = User(email=attrs["email"], full_name=attrs["full_name"])
         try:
             password_validation.validate_password(attrs["password"], candidate)
-        except Exception as exc:  # django ValidationError -> field error
-            raise serializers.ValidationError({"password": list(exc.messages)})
+        except DjangoValidationError as exc:  # Django's error -> DRF field error
+            raise serializers.ValidationError({"password": list(exc.messages)}) from exc
         return attrs
 
 

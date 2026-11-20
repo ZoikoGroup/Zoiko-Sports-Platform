@@ -15,6 +15,7 @@ process.env.E2E_DEMO_PASSWORD ??= `Zs-${randomBytes(9).toString('base64url')}-e2
 export default defineConfig({
   testDir: './e2e',
   globalSetup: './e2e/global-setup.ts',
+  globalTeardown: './e2e/global-teardown.ts',
   // A cold browser process can stall its first navigation for several seconds;
   // these limits absorb that without masking real failures.
   timeout: 60_000,

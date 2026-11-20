@@ -1,6 +1,14 @@
+from typing import TYPE_CHECKING
+
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.db import models
 from django.utils import timezone
+
+if TYPE_CHECKING:
+    # The stubs make the manager generic over its model; at runtime it is not.
+    _UserManagerBase = BaseUserManager["User"]
+else:
+    _UserManagerBase = BaseUserManager
 
 
 class AccountType(models.TextChoices):
@@ -12,7 +20,7 @@ class AccountType(models.TextChoices):
     INDIVIDUAL = "individual", "Individual"
 
 
-class UserManager(BaseUserManager):
+class UserManager(_UserManagerBase):
     use_in_migrations = True
 
     def _create_user(self, email, password, **extra):
