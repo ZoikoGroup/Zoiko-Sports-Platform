@@ -6,12 +6,14 @@ four workspaces — **Organization** (league / event), **Venue** (stadium / aren
 **Team / Club** and **Individual** (participant / staff) — plus registration,
 email verification and password reset, backed by a session-based Django API.
 
-The repository has exactly two top-level folders:
+The repository has two top-level folders, plus the GitHub Actions workflow
+(`.github/` is the one agreed exception: GitHub only reads workflows there):
 
 | Folder | Contents |
 | --- | --- |
 | [`frontend/`](frontend) | React + TypeScript single-page app, its nginx image and the end-to-end tests |
 | [`backend/`](backend) | Django REST API, its Docker image, and the Docker Compose files for the whole application |
+| [`.github/workflows/`](.github/workflows) | `ci.yml` — runs both CI pipelines on every push and pull request |
 
 ---
 
@@ -115,6 +117,7 @@ backend/
   platform_core/            shared platform pieces (no business rules)
     logging.py              JSON log formatter (Django and gunicorn)
     health.py, urls.py      /api/v1/health/live/ and /api/v1/health/ready/
+    middleware.py           answers the health probes before host validation
     management/commands/
       wait_for_db.py        waits for PostgreSQL before migrations
     tests.py
@@ -151,8 +154,9 @@ frontend/
       brand/                logo artwork extracted from the official images
       backgrounds/          stadium plate (desktop), stage (mobile), ambient fill
     index.css               design tokens + light/dark themes
-  e2e/                      Playwright suite, isolated backend launcher, warm-up
-  Dockerfile, nginx.conf    production image
+  e2e/                      Playwright suite, isolated backend launcher, warm-up, teardown
+  scripts/ci.sh             frontend CI pipeline (lint → build → npm audit → image scan)
+  Dockerfile, nginx.conf    production image (nginx mainline, unprivileged)
   playwright.config.ts, vite.config.ts, tsconfig*.json
 ```
 
@@ -166,7 +170,8 @@ frontend/
 | Serving | gunicorn (API), WhiteNoise (Django admin static files), nginx (SPA + reverse proxy) |
 | Data | PostgreSQL 16 (Docker service and named volume), psycopg 3 with Django's connection pool |
 | Testing | Django test runner + coverage (API), Playwright on Microsoft Edge (end-to-end, three viewports, both themes) |
-| Quality | ruff (lint, format, security rules), mypy with Django/DRF stubs, pip-audit, Trivy image scan |
+| Quality | ruff (lint, format, security rules), mypy with Django/DRF stubs, pip-audit, oxlint, npm audit, Trivy image scans |
+| CI | GitHub Actions (`.github/workflows/ci.yml`) running `backend/scripts/ci.sh` and `frontend/scripts/ci.sh` |
 | Dependencies | Hash-locked requirement files compiled with uv |
 | Containers | Docker, Docker Compose v2 |
 
@@ -312,7 +317,7 @@ python -m uv pip sync requirements-dev.txt --python .venv/Scripts/python.exe   #
 
 .venv/Scripts/python manage.py migrate
 
-# Optional demo accounts (DEBUG is on by default locally): set ZS_DEMO_PASSWORD
+# Optional demo accounts (needs DJANGO_DEBUG=true, as in .env.example): set ZS_DEMO_PASSWORD
 # in backend/.env, or in the shell before running the command.
 .venv/Scripts/python manage.py seed_demo
 
@@ -357,7 +362,7 @@ is optional and has a safe default.
 | `GUNICORN_ACCESS_LOG` | `true` | JSON access log lines (method, path without query string, status, duration) |
 | `ZS_HTTP_PORT` | `8080` | Host port of the web app |
 | `ZS_PUBLIC_ORIGIN` | `http://localhost:8080` | Origin users open; used for CSRF trust and links in emails |
-| `ZS_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Host names the API accepts |
+| `ZS_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Host names the API accepts (health probes answer regardless, so the container health check works with only your domain listed) |
 | `ZS_API_PORT` | `8000` | Host port for the API with the development override |
 | `DJANGO_SECRET_KEY` | *(generated)* | Leave empty to auto-generate and persist on the volume |
 | `DJANGO_SECURE_COOKIES` | `false` | Set `true` when served over HTTPS |
@@ -373,7 +378,7 @@ is optional and has a safe default.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `DJANGO_DEBUG` | `true` | Development mode. The Docker stack sets `false` |
+| `DJANGO_DEBUG` | `false` | Development mode. Off unless set to `true`; `.env.example` turns it on for local work, the Docker stack always sets `false`, CI sets `true` for its checks |
 | `DJANGO_SECRET_KEY` | dev-only key when `DEBUG` | **Required** when `DEBUG` is off |
 | `DJANGO_ALLOWED_HOSTS` | `localhost,127.0.0.1` | Comma-separated |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | `http://localhost:5173,http://127.0.0.1:5173` | Comma-separated origins |
@@ -476,7 +481,9 @@ validity window), stored in PostgreSQL 16.
 
 **Health probes** — base path `/api/v1/health/`; no authentication, never
 cached, `GET`/`HEAD` only. Bodies name each check and its state; failure
-details go to the server log only.
+details go to the server log only. They are answered before host validation
+(`platform_core/middleware.py`), because probes call the API by IP address;
+every other URL still accepts only the hosts in `DJANGO_ALLOWED_HOSTS`.
 
 | Endpoint | Answers | Use |
 | --- | --- | --- |
@@ -636,8 +643,24 @@ Steps, each of which must pass:
 7. image build, then a Trivy scan that fails on HIGH or CRITICAL vulnerabilities
    with a fix available
 
-The script is CI-service neutral: point any CI runner at it. The tests alone,
-against the development database (§6, Option B):
+**Frontend CI pipeline** (from any folder, after `npm install` in `frontend/`):
+
+```sh
+frontend/scripts/ci.sh                 # everything (about 1 minute)
+CI_SKIP_IMAGE=1 frontend/scripts/ci.sh # without the image build and scan
+```
+
+Steps: oxlint; TypeScript type check and production build; `npm audit`
+(fails on high or critical); image build; Trivy scan of the nginx image
+(fails on fixable HIGH or CRITICAL vulnerabilities — the image upgrades its
+Alpine packages at build time for this reason).
+
+**GitHub Actions** (`.github/workflows/ci.yml`) runs both pipelines as the
+jobs `backend` and `frontend` on every push and on pull requests to `main`;
+`main` should require both to pass before merging. The end-to-end suite is
+not part of CI yet; run it locally before merging larger changes.
+
+The tests alone, against the development database (§6, Option B):
 
 ```sh
 .venv/Scripts/python manage.py test
@@ -697,7 +720,7 @@ It uses the installed Microsoft Edge; set `E2E_BROWSER_CHANNEL=chrome` for Chrom
 | `manage.py` / tests on the host cannot connect | Start the database (`docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d db`) and check `DATABASE_HOST=127.0.0.1` / `DATABASE_PORT=5433` in `backend/.env`. Port 5432 is often taken by a locally installed PostgreSQL. |
 | Readiness probe answers `503` | `docker compose logs backend` names the failing check: database unreachable, or migrations not applied. |
 | End-to-end suite fails with `couldn't get a connection` | Its database container stopped responding — usually Docker itself. Check `docker version` answers; restart Docker Desktop if not. |
-| `DJANGO_SECRET_KEY must be set` locally | You set `DJANGO_DEBUG=false` without a secret key; set one or leave debug on. |
+| `DJANGO_SECRET_KEY must be set` locally | Debug is off unless enabled. Set `DJANGO_DEBUG=true` in `backend/.env` (as in `.env.example`) for local work, or set a secret key. |
 | End-to-end tests cannot launch a browser | Install Edge, or `E2E_BROWSER_CHANNEL=chrome`, or `npx playwright install chromium` with `E2E_BROWSER_CHANNEL=`. |
 
 ## 15. Security notes
