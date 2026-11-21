@@ -10,7 +10,8 @@ interface SidebarProps {
   open: boolean
   onNavigate: () => void
   onClose: () => void
-  counts: { actionCenter?: number }
+  /** Live counts for badges; null or absent shows no badge. */
+  counts: { actionCenter?: number | null }
 }
 
 function NavEntry({ item, counts, onNavigate }: { item: NavItem; counts: SidebarProps['counts']; onNavigate: () => void }) {

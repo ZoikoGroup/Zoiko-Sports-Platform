@@ -1,29 +1,45 @@
-import { request } from '../../../api/client'
-import { buildMockOverview } from './mockOverview'
-import type { OrganizerOverview } from './types'
+import { call, type OperationFor } from '../../../api/resource'
+import { ORGANIZER_ENDPOINTS as API } from './endpoints'
+import type {
+  ActionCenterData,
+  CompetitionsData,
+  FixtureChangeInput,
+  FixturesData,
+  NewCompetition,
+  NewCompetitionEvent,
+  NewFixture,
+  OrganizerOverview,
+  PublishInput,
+} from './types'
 
 /**
- * Organizer data access. The UI only talks to this module.
+ * Organizer data access. Screens only talk to this module.
  *
- * The backend has no organizer endpoints yet, so the demo data is served
- * locally (with a short delay, so loading states are exercised). To switch to the
- * real API, set VITE_ORGANIZER_DATA=api once GET /api/v1/organizer/overview/
- * returns the OrganizerOverview shape in types.ts — no component changes.
+ * Each method runs its operation from endpoints.ts. While an operation is not
+ * defined, the call rejects with NotConnectedError: reads render their "not
+ * connected" state, actions show that they are not available. Responses are
+ * expected in the view-model shapes of types.ts; if the agreed API differs,
+ * map the response here so that no component changes.
+ *
+ * Actions resolve when the server has accepted them; screens then refresh
+ * their data from the server instead of predicting the result locally.
  */
-const USE_API = import.meta.env.VITE_ORGANIZER_DATA === 'api'
-const MOCK_LATENCY_MS = 150
-
-function mock<T>(build: () => T, signal?: AbortSignal): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = window.setTimeout(() => resolve(build()), MOCK_LATENCY_MS)
-    signal?.addEventListener('abort', () => {
-      window.clearTimeout(timer)
-      reject(new DOMException('Aborted', 'AbortError'))
-    })
-  })
-}
+const at = <Args extends unknown[]>(operation: OperationFor<Args> | null, ...args: Args) => (operation ? operation(...args) : null)
 
 export const organizerApi = {
-  overview: (signal?: AbortSignal): Promise<OrganizerOverview> =>
-    USE_API ? request<OrganizerOverview>('GET', '/api/v1/organizer/overview/') : mock(() => buildMockOverview(), signal),
+  overview: (signal?: AbortSignal) => call<OrganizerOverview>(API.overview, undefined, { signal }),
+  actionCenter: (signal?: AbortSignal) => call<ActionCenterData>(API.actionCenter, undefined, { signal }),
+  competitions: (signal?: AbortSignal) => call<CompetitionsData>(API.competitions, undefined, { signal }),
+  fixtures: (signal?: AbortSignal) => call<FixturesData>(API.fixtures, undefined, { signal }),
+
+  createCompetition: (input: NewCompetition) => call<unknown>(API.createCompetition, input),
+  createEvent: ({ competitionId, ...input }: NewCompetitionEvent) => call<unknown>(at(API.createEvent, competitionId), input),
+
+  createFixture: (input: NewFixture) => call<unknown>(API.createFixture, input),
+  proposeFixtureChange: (fixtureId: string, input: FixtureChangeInput) =>
+    call<unknown>(at(API.proposeFixtureChange, fixtureId), input),
+  requestFixtureApproval: (fixtureId: string, version: number) =>
+    call<unknown>(at(API.requestFixtureApproval, fixtureId), { version }),
+  publishFixtureChange: (fixtureId: string, input: PublishInput) => call<unknown>(at(API.publishFixtureChange, fixtureId), input),
+  discardFixtureChange: (fixtureId: string) => call<unknown>(at(API.discardFixtureChange, fixtureId)),
 }

@@ -199,7 +199,7 @@ class PasswordResetConfirmView(ThrottledPublicView):
         except ValidationError as exc:
             raise ApiError(
                 "validation_error", "Please choose a stronger password.", fields={"new_password": list(exc.messages)}
-            )
+            ) from exc
         user.set_password(data["new_password"])
         user.save(update_fields=["password"])
         return Response({"status": "password_changed"})

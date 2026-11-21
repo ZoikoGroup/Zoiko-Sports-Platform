@@ -2,7 +2,7 @@
 # Prepares the container before the app server starts:
 #  1. secret key: DJANGO_SECRET_KEY if provided, otherwise a random key generated
 #     once and kept on the data volume (so sessions survive restarts);
-#  2. database migrations;
+#  2. wait for PostgreSQL (ZS_DB_WAIT_SECONDS, default 60), then apply migrations;
 #  3. optional demo accounts (ZS_SEED_DEMO=true, password from ZS_DEMO_PASSWORD).
 set -eu
 
@@ -20,6 +20,7 @@ if [ -n "${DJANGO_CACHE_DIR:-}" ]; then
   mkdir -p "$DJANGO_CACHE_DIR"
 fi
 
+python manage.py wait_for_db --timeout "${ZS_DB_WAIT_SECONDS:-60}"
 python manage.py migrate --noinput
 
 if [ "${ZS_SEED_DEMO:-false}" = "true" ]; then

@@ -42,8 +42,17 @@ async function ensureCsrfToken(): Promise<string> {
   return readCookie('csrftoken') ?? ''
 }
 
-export async function request<T>(method: 'GET' | 'POST', path: string, body?: unknown): Promise<T> {
-  const headers: Record<string, string> = { Accept: 'application/json' }
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
+
+export interface RequestOptions {
+  /** Cancels the request (e.g. when the page that asked for it unmounts). */
+  signal?: AbortSignal
+  /** Extra headers, such as concurrency or idempotency headers once the API defines them. */
+  headers?: Record<string, string>
+}
+
+export async function request<T>(method: HttpMethod, path: string, body?: unknown, options: RequestOptions = {}): Promise<T> {
+  const headers: Record<string, string> = { Accept: 'application/json', ...options.headers }
   if (method !== 'GET') {
     headers['Content-Type'] = 'application/json'
     headers['X-CSRFToken'] = await ensureCsrfToken()
@@ -55,9 +64,12 @@ export async function request<T>(method: 'GET' | 'POST', path: string, body?: un
       method,
       headers,
       credentials: 'same-origin',
+      signal: options.signal,
       body: body === undefined ? undefined : JSON.stringify(body),
     })
-  } catch {
+  } catch (error) {
+    // A cancelled request is not a network failure; let the caller ignore it.
+    if (options.signal?.aborted) throw error
     throw NETWORK_ERROR
   }
 

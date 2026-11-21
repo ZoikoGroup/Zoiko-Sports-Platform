@@ -1,0 +1,80 @@
+# Project metadata and tool configuration for the Zoiko Sports API.
+# Dependencies are locked in requirements.txt / requirements-dev.txt (see the .in files).
+
+[project]
+name = "zoiko-sports-backend"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+
+# --- Ruff: linter and formatter ---------------------------------------------
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+extend-exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+select = [
+  "E", "W",   # pycodestyle
+  "F",        # pyflakes
+  "I",        # import order
+  "B",        # bugbear
+  "UP",       # modern syntax for the target Python
+  "S",        # security (bandit rules)
+  "DJ",       # Django conventions
+  "C4",       # comprehensions
+  "SIM",      # simplifications
+  "RUF",      # ruff-specific
+  "DTZ",      # timezone-aware datetimes only
+  "LOG", "G", # logging calls
+]
+ignore = [
+  "E501",     # line length is the formatter's job
+  "RUF012",   # Django/DRF class attributes (Meta.fields etc.) are idiomatic
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests use literal passwords and assertions on purpose.
+"**/tests.py" = ["S101", "S105", "S106"]
+
+# --- mypy: static types ------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+check_untyped_defs = true
+no_implicit_optional = true
+strict_equality = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unreachable = true
+exclude = ['^\.venv/']
+
+[[tool.mypy.overrides]]
+module = ["*.migrations.*"]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+# gunicorn ships no type information (used only by gunicorn.conf.py).
+module = ["gunicorn.*"]
+ignore_missing_imports = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings"
+
+# --- coverage ------------------------------------------------------------------
+[tool.coverage.run]
+branch = true
+source = ["."]
+omit = [
+  ".venv/*",
+  "*/migrations/*",
+  "*/tests.py",
+  "manage.py",
+  "config/asgi.py",
+  "config/wsgi.py",
+  "gunicorn.conf.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 85

@@ -110,3 +110,34 @@ export function initials(name: string): string {
 
 /** "competition_director" → "Competition Director". */
 export const humanizeRole = (role: string) => role.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+
+/**
+ * Short zone name for an instant ("PST", "JST", "IST", "AEDT"). en-US only knows
+ * American abbreviations, so other locales are tried for zones it renders as
+ * "GMT+x"; the offset form is kept if none has a common abbreviation.
+ */
+const ZONE_LOCALES = ['en-US', 'en-AU', 'en-IN', 'en-GB', 'ja-JP']
+export function zoneAbbreviation(date: Date, timeZone: string): string {
+  let fallback = ''
+  for (const locale of ZONE_LOCALES) {
+    const name = new Intl.DateTimeFormat(locale, { timeZone, timeZoneName: 'short' })
+      .formatToParts(date)
+      .find((part) => part.type === 'timeZoneName')?.value
+    if (!name) continue
+    if (/^[A-Z]{2,5}$/.test(name)) return name
+    fallback ||= name
+  }
+  return fallback
+}
+
+/** { date: "Wed, Nov 18, 2026", time: "7:00 PM PST" } in the fixture's own zone. */
+export function formatLocalDateTime(iso: string, timeZone: string): { date: string; time: string } {
+  const instant = new Date(iso)
+  const date = new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }).format(instant)
+  const time = new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', minute: '2-digit' }).format(instant)
+  return { date, time: `${time} ${zoneAbbreviation(instant, timeZone)}` }
+}
+
+/** "2026-11-18": the calendar day of an instant in a zone. */
+export const localDay = (iso: string, timeZone?: string) =>
+  new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso))

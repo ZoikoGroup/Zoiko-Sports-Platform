@@ -6,8 +6,15 @@ tmp/
 staticfiles/
 .dockerignore
 Dockerfile
-docker-compose.yml
+docker-compose*.yml
 # Local configuration and secrets never go into the image.
 .env
 .env.*
 README.md
+# Development and CI tooling is not needed at runtime.
+scripts/
+requirements-dev.*
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/

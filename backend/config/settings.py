@@ -7,21 +7,44 @@ same settings module serves local, staging and production deployments.
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+from dotenv import load_dotenv
+
+from .database import DatabaseConfigError, database_from_env
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
+def env_str(name: str, default: str) -> str:
+    """The variable's value, or `default` when it is unset or empty (as `KEY=` in .env)."""
+    return os.environ.get(name, "").strip() or default
+
+
 def env_bool(name: str, default: bool = False) -> bool:
-    return os.environ.get(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}
+    return env_str(name, str(default)).lower() in {"1", "true", "yes", "on"}
 
 
 def env_list(name: str, default: str = "") -> list[str]:
     return [item.strip() for item in os.environ.get(name, default).split(",") if item.strip()]
 
 
-DEBUG = env_bool("DJANGO_DEBUG", True)
-SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-insecure-key-change-me" if DEBUG else "")
+# Processes started on the host (runserver, manage.py, tests) read backend/.env so
+# they find the same database as Docker. Real environment variables always win,
+# and the file is never copied into the image. Automation that must not pick up
+# a developer's .env (CI, the end-to-end harness) sets DJANGO_READ_DOTENV=false.
+if env_bool("DJANGO_READ_DOTENV", True):
+    load_dotenv(BASE_DIR / ".env", override=False)
+
+
+# Off unless explicitly enabled, so a deployment that forgets the setting never
+# exposes debug pages. backend/.env.example enables it for local development.
+DEBUG = env_bool("DJANGO_DEBUG", False)
+SECRET_KEY = env_str("DJANGO_SECRET_KEY", "dev-only-insecure-key-change-me" if DEBUG else "")
 if not SECRET_KEY:
-    raise RuntimeError("DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is off.")
+    raise RuntimeError(
+        "DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is off. "
+        "For local development set DJANGO_DEBUG=true in backend/.env (see .env.example)."
+    )
 
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 
@@ -33,10 +56,13 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "platform_core",
     "accounts",
 ]
 
 MIDDLEWARE = [
+    # First: health probes are answered before host validation (see the module).
+    "platform_core.middleware.HealthCheckMiddleware",
     "django.middleware.security.SecurityMiddleware",
     # Serves collected static files (Django admin) from the app server.
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -67,12 +93,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": os.environ.get("DJANGO_SQLITE_PATH", BASE_DIR / "db.sqlite3"),
-    }
-}
+# PostgreSQL 16 is the only supported database (see config/database.py).
+try:
+    DATABASES = {"default": database_from_env(os.environ)}
+except DatabaseConfigError as exc:
+    raise ImproperlyConfigured(str(exc)) from exc
 
 AUTH_USER_MODEL = "accounts.User"
 
@@ -129,28 +154,28 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_THROTTLE_RATES": {
-        "auth": os.environ.get("AUTH_THROTTLE_RATE", "10/min"),
+        "auth": env_str("AUTH_THROTTLE_RATE", "10/min"),
     },
     "EXCEPTION_HANDLER": "accounts.errors.exception_handler",
     # Behind a reverse proxy (nginx in Docker) throttling must key on the client
     # address from X-Forwarded-For, not the proxy's. 0 = no proxy (direct access).
-    "NUM_PROXIES": int(os.environ.get("DJANGO_NUM_PROXIES", "0")) or None,
+    "NUM_PROXIES": int(env_str("DJANGO_NUM_PROXIES", "0")) or None,
 }
 
 # --- Email -----------------------------------------------------------------
-EMAIL_BACKEND = os.environ.get("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+EMAIL_BACKEND = env_str("DJANGO_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
 EMAIL_FILE_PATH = os.environ.get("DJANGO_EMAIL_FILE_PATH", BASE_DIR / "tmp" / "emails")  # filebased backend only
-DEFAULT_FROM_EMAIL = os.environ.get("DJANGO_DEFAULT_FROM_EMAIL", "Zoiko Sports <no-reply@zoikosports.local>")
+DEFAULT_FROM_EMAIL = env_str("DJANGO_DEFAULT_FROM_EMAIL", "Zoiko Sports <no-reply@zoikosports.local>")
 # SMTP (used when DJANGO_EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend)
-EMAIL_HOST = os.environ.get("DJANGO_EMAIL_HOST", "localhost")
-EMAIL_PORT = int(os.environ.get("DJANGO_EMAIL_PORT", "587"))
+EMAIL_HOST = env_str("DJANGO_EMAIL_HOST", "localhost")
+EMAIL_PORT = int(env_str("DJANGO_EMAIL_PORT", "587"))
 EMAIL_HOST_USER = os.environ.get("DJANGO_EMAIL_HOST_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("DJANGO_EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = env_bool("DJANGO_EMAIL_USE_TLS", True)
 
 # Public URL of the frontend, used to build links in password-reset and
 # verification emails.
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173").rstrip("/")
+FRONTEND_URL = env_str("FRONTEND_URL", "http://localhost:5173").rstrip("/")
 
 # --- Federated sign-in -----------------------------------------------------
 # A provider is offered as active only once its credentials are configured.
@@ -163,12 +188,29 @@ AUTH_PROVIDERS = {
 }
 AUTH_PASSKEYS_ENABLED = env_bool("AUTH_PASSKEYS_ENABLED", False)
 
+# --- Logging ---------------------------------------------------------------
+# One handler on the root logger, so every module's logs share one format:
+# "json" (one object per line, for log collectors; the default when DEBUG is
+# off) or "text" (readable in a terminal; the default when DEBUG is on).
+LOG_FORMAT = env_str("DJANGO_LOG_FORMAT", "text" if DEBUG else "json").lower()
+if LOG_FORMAT not in {"json", "text"}:
+    raise ImproperlyConfigured("DJANGO_LOG_FORMAT must be json or text.")
+LOG_LEVEL = env_str("DJANGO_LOG_LEVEL", "INFO").upper()
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "formatters": {
+        "json": {"()": "platform_core.logging.JsonFormatter"},
+        "text": {"format": "%(asctime)s %(levelname)s %(name)s: %(message)s"},
+    },
+    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": LOG_FORMAT}},
+    "root": {"handlers": ["console"], "level": LOG_LEVEL},
     "loggers": {
-        "accounts": {"handlers": ["console"], "level": "INFO"},
-        "django.request": {"handlers": ["console"], "level": "WARNING"},
+        # Replace Django's default handlers so records reach the root handler once.
+        "django": {"handlers": [], "level": "INFO", "propagate": True},
+        "django.request": {"level": "WARNING"},
+        # Development-server request lines (runserver only), in the same format.
+        "django.server": {"level": "INFO"},
     },
 }

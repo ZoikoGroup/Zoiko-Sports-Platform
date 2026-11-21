@@ -36,12 +36,13 @@ def exception_handler(exc, context):
         return error_response("validation_error", message, response.status_code, fields or None)
 
     if isinstance(exc, exceptions.Throttled):
-        wait = int(exc.wait or 0)
+        wait = int(getattr(exc, "wait", None) or 0)
         response.data = {
             "error": {
                 "code": "rate_limited",
-                "message": f"Too many attempts. Please wait {wait} seconds and try again." if wait else
-                "Too many attempts. Please try again shortly.",
+                "message": f"Too many attempts. Please wait {wait} seconds and try again."
+                if wait
+                else "Too many attempts. Please try again shortly.",
                 "retry_after": wait,
             }
         }

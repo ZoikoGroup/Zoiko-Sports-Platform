@@ -289,3 +289,39 @@ const LINE_ICONS: Record<SportId, ReactNode> = {
 export function SportIcon({ sport, ...props }: IconProps & { sport: SportId }) {
   return <Stroke {...props}>{LINE_ICONS[sport]}</Stroke>
 }
+
+/** The cluster of balls on the right of the Competitions & Events banner. */
+export function HeroBalls({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 540 210" preserveAspectRatio="xMaxYMax meet" aria-hidden="true" focusable="false">
+      <defs>
+        <radialGradient id="hero-ball-shadow">
+          <stop offset="0" stopColor="#000" stopOpacity="0.55" />
+          <stop offset="1" stopColor="#000" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <ellipse cx="290" cy="198" rx="250" ry="12" fill="url(#hero-ball-shadow)" />
+      <Ball sport="basketball" x={150} y={34} size={148} />
+      <Ball sport="soccer" x={300} y={8} size={150} />
+      <Ball sport="cricket" x={396} y={70} size={128} />
+      <Ball sport="football" x={22} y={64} size={180} rotate={-22} />
+      <Ball sport="tennis" x={270} y={118} size={92} />
+    </svg>
+  )
+}
+
+/** One large soccer ball for the Fixtures & Schedule banner. */
+export function HeroBall({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 260 210" preserveAspectRatio="xMaxYMax meet" aria-hidden="true" focusable="false">
+      <defs>
+        <radialGradient id="hero-single-shadow">
+          <stop offset="0" stopColor="#000" stopOpacity="0.6" />
+          <stop offset="1" stopColor="#000" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      <ellipse cx="140" cy="200" rx="110" ry="10" fill="url(#hero-single-shadow)" />
+      <Ball sport="soccer" x={30} y={2} size={196} rotate={-12} />
+    </svg>
+  )
+}

@@ -42,7 +42,8 @@ function GlobalSearch({ shell }: { shell: OrganizerShell }) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+      // Not while a modal dialog is open: the page behind it is inert.
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k' && !document.querySelector('dialog[open]')) {
         event.preventDefault()
         inputRef.current?.focus()
         inputRef.current?.select()
@@ -168,6 +169,13 @@ export function Topbar({ shell, onOpenNavigation }: TopbarProps) {
   const { preference, setPreference } = useTheme()
   const notifications = shell.overview.data?.notifications ?? []
   const unread = notifications.filter((n) => n.unread).length
+  // An empty list only means "caught up" when it came from the server.
+  const emptyNotice = {
+    loading: 'Loading notifications…',
+    ready: "You're all caught up.",
+    unavailable: "Notifications aren't connected yet.",
+    error: "Notifications couldn't be loaded.",
+  }[shell.overview.status]
   const regionLabel = shell.region === 'all' ? 'All Regions' : REGION_LABELS[shell.region]
 
   return (
@@ -231,7 +239,7 @@ export function Topbar({ shell, onOpenNavigation }: TopbarProps) {
             <>
               <div className="org-notifications__head">
                 <h2>Notifications</h2>
-                <span>{unread} unread</span>
+                {shell.overview.status === 'ready' && <span>{unread} unread</span>}
               </div>
               <ul className="org-notifications__list">
                 {notifications.map((n) => (
@@ -241,7 +249,7 @@ export function Topbar({ shell, onOpenNavigation }: TopbarProps) {
                     <span className="org-notifications__time">{formatRelativeDay(n.createdAt)}</span>
                   </li>
                 ))}
-                {notifications.length === 0 && <li>You're all caught up.</li>}
+                {notifications.length === 0 && <li>{emptyNotice}</li>}
               </ul>
               <Link className="org-notifications__all" to={organizerPath('action-center')} onClick={close}>
                 Open Action Center

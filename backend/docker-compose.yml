@@ -3,18 +3,50 @@
 #
 #   frontend: nginx serving the built SPA on http://localhost:${ZS_HTTP_PORT:-8080}
 #             and proxying /api, /admin and /static to the backend.
-#   backend:  Django API (gunicorn) on the internal network only; SQLite, the
-#             generated secret key and the rate-limit cache live on a named volume.
-# Settings come from backend/.env (copy .env.example); every value has a safe default.
+#   backend:  Django API (gunicorn) on the internal network only; the generated
+#             secret key and the rate-limit cache live on the backend-data volume.
+#   db:       PostgreSQL 16 on the internal network only; data on postgres-data.
+# Settings come from backend/.env (copy .env.example). POSTGRES_PASSWORD is
+# required; every other value has a safe default.
 name: zoiko-sports
 
+x-database: &database
+  POSTGRES_DB: ${POSTGRES_DB:-zoiko}
+  POSTGRES_USER: ${POSTGRES_USER:-zoiko}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in backend/.env (see .env.example)}
+
 services:
+  db:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      <<: *database
+      # Password logins use SCRAM-SHA-256, never md5 or trust.
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256 --auth-local=scram-sha-256
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
   backend:
     build:
       context: .
     image: zoiko-sports-backend:latest
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
+      <<: *database
+      DATABASE_HOST: db
+      DATABASE_PORT: "5432"
+      DATABASE_SSLMODE: ${DATABASE_SSLMODE:-}
       DJANGO_DEBUG: "false"
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-}          # empty = generated and kept on the volume
       DJANGO_ALLOWED_HOSTS: ${ZS_ALLOWED_HOSTS:-localhost,127.0.0.1}
@@ -38,6 +70,10 @@ services:
       AUTH_PASSKEYS_ENABLED: ${AUTH_PASSKEYS_ENABLED:-false}
       ZS_SEED_DEMO: ${ZS_SEED_DEMO:-false}
       ZS_DEMO_PASSWORD: ${ZS_DEMO_PASSWORD:-}
+      ZS_DB_WAIT_SECONDS: ${ZS_DB_WAIT_SECONDS:-60}
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-30}
+      GUNICORN_ACCESS_LOG: ${GUNICORN_ACCESS_LOG:-true}
     volumes:
       - backend-data:/app/data
     expose:
@@ -62,3 +98,4 @@ services:
 
 volumes:
   backend-data:
+  postgres-data:

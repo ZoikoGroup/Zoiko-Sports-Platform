@@ -1,5 +1,6 @@
 import { CircleCheck, Rss } from 'lucide-react'
 import type { RecentUpdate } from '../api/types'
+import { EmptyMessage } from '../components/DataState'
 import { formatAgo } from '../format'
 
 /** One-line strip of the latest platform updates. */
@@ -11,7 +12,7 @@ export function RecentUpdates({ items, now }: { items: RecentUpdate[]; now: Date
         Recent Updates
       </h2>
       {items.length === 0 ? (
-        <p className="org-updates__empty">No updates yet.</p>
+        <EmptyMessage className="org-updates__empty">No updates yet.</EmptyMessage>
       ) : (
         <ul className="org-updates__list">
           {items.slice(0, 3).map((item) => (
