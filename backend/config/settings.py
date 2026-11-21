@@ -36,10 +36,15 @@ if env_bool("DJANGO_READ_DOTENV", True):
     load_dotenv(BASE_DIR / ".env", override=False)
 
 
-DEBUG = env_bool("DJANGO_DEBUG", True)
+# Off unless explicitly enabled, so a deployment that forgets the setting never
+# exposes debug pages. backend/.env.example enables it for local development.
+DEBUG = env_bool("DJANGO_DEBUG", False)
 SECRET_KEY = env_str("DJANGO_SECRET_KEY", "dev-only-insecure-key-change-me" if DEBUG else "")
 if not SECRET_KEY:
-    raise RuntimeError("DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is off.")
+    raise RuntimeError(
+        "DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is off. "
+        "For local development set DJANGO_DEBUG=true in backend/.env (see .env.example)."
+    )
 
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
 
@@ -56,6 +61,8 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    # First: health probes are answered before host validation (see the module).
+    "platform_core.middleware.HealthCheckMiddleware",
     "django.middleware.security.SecurityMiddleware",
     # Serves collected static files (Django admin) from the app server.
     "whitenoise.middleware.WhiteNoiseMiddleware",

@@ -33,6 +33,9 @@ PYTHON=${PYTHON:-python}
 # Never pick up a developer's backend/.env; CI is configured explicitly.
 export DJANGO_READ_DOTENV=false
 export DJANGO_SETTINGS_MODULE=config.settings
+# Development settings for checks and tests (the test runner itself always runs
+# with DEBUG off). Debug is off by default, so CI states what it needs.
+export DJANGO_DEBUG="${DJANGO_DEBUG:-true}"
 
 started=$(date +%s)
 step() { printf '\n==> %s\n' "$*"; }

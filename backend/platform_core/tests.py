@@ -1,16 +1,81 @@
+import importlib.util
 import json
 import logging
+import os
 import sys
 from io import StringIO
+from pathlib import Path
+from types import ModuleType
 from unittest.mock import MagicMock, patch
 
 from django.core.management import CommandError, call_command
 from django.db import OperationalError
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 
 from config.database import DatabaseConfigError, database_from_env
 from platform_core import health
 from platform_core.logging import JsonFormatter
+
+SETTINGS_FILE = Path(__file__).resolve().parent.parent / "config" / "settings.py"
+
+
+def load_settings(env: dict[str, str]) -> ModuleType:
+    """A fresh, isolated copy of config/settings.py evaluated with exactly `env`.
+
+    The running configuration (django.conf.settings) is not touched.
+    """
+    spec = importlib.util.spec_from_file_location("config._settings_under_test", SETTINGS_FILE)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    with patch.dict(os.environ, {"DJANGO_READ_DOTENV": "false", **env}, clear=True):
+        spec.loader.exec_module(module)
+    return module
+
+
+class SettingsDefaultsTests(SimpleTestCase):
+    def test_debug_is_off_unless_enabled(self):
+        settings = load_settings({"DJANGO_SECRET_KEY": "k" * 50})
+        self.assertFalse(settings.DEBUG)
+        self.assertTrue(settings.SESSION_COOKIE_SECURE)  # secure cookies follow debug off
+
+    def test_debug_off_without_a_secret_key_refuses_to_start(self):
+        with self.assertRaisesMessage(RuntimeError, "set DJANGO_DEBUG=true in backend/.env"):
+            load_settings({})
+
+    def test_debug_on_uses_the_development_key_and_text_logs(self):
+        settings = load_settings({"DJANGO_DEBUG": "true"})
+        self.assertTrue(settings.DEBUG)
+        self.assertTrue(settings.SECRET_KEY.startswith("dev-only"))
+        self.assertEqual(settings.LOG_FORMAT, "text")
+
+    def test_empty_values_count_as_unset(self):
+        settings = load_settings({"DJANGO_DEBUG": "", "DJANGO_SECRET_KEY": "k" * 50, "DJANGO_DEFAULT_FROM_EMAIL": ""})
+        self.assertFalse(settings.DEBUG)
+        self.assertEqual(settings.DEFAULT_FROM_EMAIL, "Zoiko Sports <no-reply@zoikosports.local>")
+
+
+@override_settings(ALLOWED_HOSTS=["sports.example.com"])
+class HealthProbeHostTests(TestCase):
+    """Probes are called by IP (Docker uses 127.0.0.1:8000), not by the public host name."""
+
+    def setUp(self):
+        health._migrations_applied = False
+
+    def test_probes_answer_under_a_production_host_list(self):
+        for path in ("/api/v1/health/live/", "/api/v1/health/ready/"):
+            with self.subTest(path=path):
+                self.assertEqual(self.client.get(path, HTTP_HOST="127.0.0.1:8000").status_code, 200)
+
+    def test_every_other_url_still_validates_the_host(self):
+        with self.assertLogs("django.security.DisallowedHost", "ERROR"):
+            response = self.client.get("/api/v1/auth/config/", HTTP_HOST="127.0.0.1:8000")
+        self.assertEqual(response.status_code, 400)
+        allowed = self.client.get("/api/v1/auth/config/", HTTP_HOST="sports.example.com")
+        self.assertEqual(allowed.status_code, 200)
+
+    def test_probes_keep_their_method_rules(self):
+        self.assertEqual(self.client.post("/api/v1/health/live/", HTTP_HOST="127.0.0.1:8000").status_code, 405)
+        self.assertEqual(self.client.head("/api/v1/health/ready/", HTTP_HOST="127.0.0.1:8000").status_code, 200)
 
 
 class DatabaseFromEnvTests(SimpleTestCase):
