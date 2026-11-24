@@ -12,15 +12,33 @@ log, never to the caller.
 """
 
 import logging
+from collections.abc import Callable
+from functools import wraps
 from typing import Literal
 
 from django.db import DatabaseError, connection
 from django.db.migrations.executor import MigrationExecutor
-from django.http import HttpRequest, JsonResponse
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_safe
+
+from .errors import method_not_allowed
 
 logger = logging.getLogger(__name__)
+
+SAFE_METHODS = ["GET", "HEAD"]
+
+
+def require_safe(view: Callable[[HttpRequest], HttpResponse]) -> Callable[[HttpRequest], HttpResponse]:
+    """GET and HEAD only; anything else gets 405 in the platform error envelope."""
+
+    @wraps(view)
+    def wrapper(request: HttpRequest) -> HttpResponse:
+        if request.method not in SAFE_METHODS:
+            return method_not_allowed(SAFE_METHODS)
+        return view(request)
+
+    return wrapper
+
 
 CheckState = Literal["ok", "unavailable", "pending"]
 

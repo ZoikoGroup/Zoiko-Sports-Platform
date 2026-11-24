@@ -5,6 +5,8 @@ same settings module serves local, staging and production deployments.
 """
 
 import os
+import sys
+from datetime import timedelta
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -26,6 +28,18 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 def env_list(name: str, default: str = "") -> list[str]:
     return [item.strip() for item in os.environ.get(name, default).split(",") if item.strip()]
+
+
+def env_int(name: str, default: int, minimum: int = 0, maximum: int | None = None) -> int:
+    raw = env_str(name, str(default))
+    try:
+        value = int(raw)
+    except ValueError:
+        raise ImproperlyConfigured(f"{name} must be a whole number, not {raw!r}.") from None
+    if value < minimum or (maximum is not None and value > maximum):
+        upper = f" and at most {maximum}" if maximum is not None else ""
+        raise ImproperlyConfigured(f"{name} must be at least {minimum}{upper}.")
+    return value
 
 
 # Processes started on the host (runserver, manage.py, tests) read backend/.env so
@@ -56,12 +70,21 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
+    "drf_spectacular",
     "platform_core",
     "accounts",
 ]
 
+# `manage.py test` (also under coverage) adds the kernel's reference module: a
+# test-only app that exercises the platform conventions through real HTTP calls.
+TESTING = len(sys.argv) > 1 and sys.argv[1] == "test"
+if TESTING:
+    INSTALLED_APPS.append("platform_core.tests.reference")
+
 MIDDLEWARE = [
-    # First: health probes are answered before host validation (see the module).
+    # First: every response and log line carries the request's correlation ID.
+    "platform_core.middleware.RequestContextMiddleware",
+    # Health probes are answered before host validation (see the module).
     "platform_core.middleware.HealthCheckMiddleware",
     "django.middleware.security.SecurityMiddleware",
     # Serves collected static files (Django admin) from the app server.
@@ -135,6 +158,8 @@ CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SECURE = SECURE_COOKIES
 CSRF_COOKIE_HTTPONLY = False  # the SPA reads it to send X-CSRFToken
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
+# API paths answer a CSRF failure in the platform error envelope (csrf_failed).
+CSRF_FAILURE_VIEW = "platform_core.errors.csrf_failure"
 
 # --- Cache -----------------------------------------------------------------
 # Rate-limit counters live in the cache. With several app-server workers (the
@@ -156,10 +181,38 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "auth": env_str("AUTH_THROTTLE_RATE", "10/min"),
     },
-    "EXCEPTION_HANDLER": "accounts.errors.exception_handler",
+    "EXCEPTION_HANDLER": "platform_core.errors.exception_handler",
+    "DEFAULT_PAGINATION_CLASS": "platform_core.pagination.CursorPage",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     # Behind a reverse proxy (nginx in Docker) throttling must key on the client
     # address from X-Forwarded-For, not the proxy's. 0 = no proxy (direct access).
     "NUM_PROXIES": int(env_str("DJANGO_NUM_PROXIES", "0")) or None,
+}
+
+# --- Platform kernel conventions (platform_core) ---------------------------
+# List endpoints: cursor pages of API_PAGE_SIZE rows, never more than API_MAX_PAGE_SIZE.
+API_MAX_PAGE_SIZE = env_int("API_MAX_PAGE_SIZE", 100, minimum=1, maximum=1000)
+API_PAGE_SIZE = env_int("API_PAGE_SIZE", min(25, API_MAX_PAGE_SIZE), minimum=1, maximum=API_MAX_PAGE_SIZE)
+# How long a stored Idempotency-Key outcome is replayed (platform_core.idempotency).
+IDEMPOTENCY_TTL = timedelta(hours=env_int("IDEMPOTENCY_TTL_HOURS", 24, minimum=1, maximum=24 * 30))
+
+# --- API documentation (OpenAPI 3, drf-spectacular) --------------------------
+# The schema is generated from the code; backend/openapi.yaml is the reviewed copy
+# and CI fails when the two differ. Served at /api/v1/schema/ only with DEBUG on.
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Zoiko Sports API",
+    "DESCRIPTION": (
+        'Conventions: errors use {"error": {code, message, request_id, fields?}}; every response carries '
+        "X-Request-ID; lists use cursor pagination ({next, previous, results}); creates take an "
+        "Idempotency-Key header; edits state the `version` they are based on and get 409 version_conflict "
+        "when it moved; instants are RFC 3339 in UTC; time zones are IANA names."
+    ),
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SCHEMA_PATH_PREFIX": r"/api/v1",
+    "COMPONENT_SPLIT_REQUEST": True,
+    # One schema name per shared choice set.
+    "ENUM_NAME_OVERRIDES": {"AccountTypeEnum": "accounts.models.AccountType"},
 }
 
 # --- Email -----------------------------------------------------------------
@@ -200,11 +253,15 @@ LOG_LEVEL = env_str("DJANGO_LOG_LEVEL", "INFO").upper()
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    # Adds `request_id` (the request's correlation ID) to every record.
+    "filters": {"request_context": {"()": "platform_core.logging.RequestContextFilter"}},
     "formatters": {
         "json": {"()": "platform_core.logging.JsonFormatter"},
         "text": {"format": "%(asctime)s %(levelname)s %(name)s: %(message)s"},
     },
-    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": LOG_FORMAT}},
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": LOG_FORMAT, "filters": ["request_context"]}
+    },
     "root": {"handlers": ["console"], "level": LOG_LEVEL},
     "loggers": {
         # Replace Django's default handlers so records reach the root handler once.

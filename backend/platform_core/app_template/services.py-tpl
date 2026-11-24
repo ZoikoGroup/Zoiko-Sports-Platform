@@ -1,0 +1,9 @@
+"""Write operations of the {{ app_name }} module (the public write interface).
+
+- Each operation runs in one transaction (django.db.transaction.atomic).
+- Edits of versioned records state the expected version and go through
+  platform_core.concurrency.update_versioned (409 version_conflict on mismatch).
+- Creates exposed through the API are made idempotent in the view with
+  platform_core.idempotency.idempotent.
+- Other modules call these functions; they never import this module's models.
+"""

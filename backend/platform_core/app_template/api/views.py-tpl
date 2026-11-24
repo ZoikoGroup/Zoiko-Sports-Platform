@@ -1,0 +1,5 @@
+"""HTTP endpoints of the {{ app_name }} module: parse, call a service or selector, respond.
+
+Document every operation with drf_spectacular's @extend_schema, reusing
+platform_core.openapi (error_responses, IDEMPOTENCY_KEY_PARAMETER).
+"""

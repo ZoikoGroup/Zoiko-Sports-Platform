@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Zoiko Sports backend CI pipeline. Every step must pass; the first failure stops it.
 #
-#   lint → format → types → Django checks → migrations complete → tests + coverage
+#   lint → format → types → Django checks (incl. module boundaries) → migrations
+#   complete → API schema matches openapi.yaml → tests + coverage
 #   → dependency audit → image build → image vulnerability scan
 #
 # Run from anywhere (Git Bash on Windows, or any Linux/macOS shell):
@@ -41,8 +42,10 @@ started=$(date +%s)
 step() { printf '\n==> %s\n' "$*"; }
 
 pg_container=""
+work_dir=$(mktemp -d)
 cleanup() {
   if [ -n "$pg_container" ]; then docker rm -f "$pg_container" >/dev/null 2>&1 || true; fi
+  rm -rf "$work_dir"
 }
 trap cleanup EXIT
 
@@ -77,6 +80,14 @@ step "Django system checks"
 
 step "Migrations match the models"
 "$PYTHON" manage.py makemigrations --check --dry-run
+
+step "API schema (OpenAPI): zero warnings, matches openapi.yaml"
+"$PYTHON" manage.py spectacular --validate --fail-on-warn --file "$work_dir/openapi.yaml"
+if ! diff -u --strip-trailing-cr openapi.yaml "$work_dir/openapi.yaml"; then
+  echo "The API changed but openapi.yaml did not. Review the change, then run:" >&2
+  echo "  python manage.py spectacular --file openapi.yaml" >&2
+  exit 1
+fi
 
 step "Tests with coverage"
 "$PYTHON" -m coverage erase

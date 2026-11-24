@@ -56,6 +56,9 @@ services:
       DJANGO_CACHE_DIR: /app/data/cache
       FRONTEND_URL: ${ZS_PUBLIC_ORIGIN:-http://localhost:8080}
       AUTH_THROTTLE_RATE: ${AUTH_THROTTLE_RATE:-10/min}
+      API_PAGE_SIZE: ${API_PAGE_SIZE:-25}
+      API_MAX_PAGE_SIZE: ${API_MAX_PAGE_SIZE:-100}
+      IDEMPOTENCY_TTL_HOURS: ${IDEMPOTENCY_TTL_HOURS:-24}
       DJANGO_EMAIL_BACKEND: ${DJANGO_EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
       DJANGO_DEFAULT_FROM_EMAIL: ${DJANGO_DEFAULT_FROM_EMAIL:-Zoiko Sports <no-reply@zoikosports.local>}
       DJANGO_EMAIL_HOST: ${DJANGO_EMAIL_HOST:-}
