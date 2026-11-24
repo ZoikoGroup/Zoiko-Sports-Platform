@@ -108,22 +108,34 @@ backend/
       seed_demo.py          fictional demo organizations + accounts
     migrations/
     emails.py               verification / reset / "already registered" emails
-    errors.py               single JSON error envelope for every API error
     models.py               User (email login), Organization, Membership
-    serializers.py          request validation + session payload
+    serializers.py          request validation + session payload + response shapes
     tokens.py               single-use verification and reset tokens
-    urls.py, views.py       /api/v1/auth/* endpoints
+    urls.py, views.py       /api/v1/auth/* endpoints (documented with @extend_schema)
     tests.py                API + seed-command tests
-  platform_core/            shared platform pieces (no business rules)
-    logging.py              JSON log formatter (Django and gunicorn)
+  platform_core/            platform kernel: shared conventions, no business rules (§9)
+    request_context.py      per-request correlation ID (X-Request-ID)
+    middleware.py           correlation ID; health probes answered before host validation
+    errors.py               the JSON error envelope for every API error (DRF and Django level)
+    models.py               base records (public UUID, timestamps, version); idempotency table
+    concurrency.py          version-checked edits (409 version_conflict)
+    idempotency.py          Idempotency-Key handling for creates
+    pagination.py           cursor (keyset) pagination
+    filtering.py            strict query-parameter filters
+    timeutils.py, fields.py UTC, IANA time zones, daylight-saving-safe conversion; API fields
+    openapi.py              shared OpenAPI pieces (error responses, Idempotency-Key header)
+    boundaries.py, checks.py  module boundary rule as a `manage.py check` system check
+    app_template/           template for new modules (`startapp --template`)
+    logging.py              JSON log formatter + request-ID log filter
     health.py, urls.py      /api/v1/health/live/ and /api/v1/health/ready/
-    middleware.py           answers the health probes before host validation
     management/commands/
       wait_for_db.py        waits for PostgreSQL before migrations
-    tests.py
+      purge_idempotency_records.py  deletes expired idempotency records
+    tests/                  kernel tests; reference/ is a test-only module using every convention
   config/                   Django settings, URLs, WSGI/ASGI
     database.py             PostgreSQL settings from DATABASE_* variables
-  scripts/ci.sh             the CI pipeline (lint → types → tests → audits → image scan)
+  openapi.yaml              the reviewed API contract (CI fails when the code differs)
+  scripts/ci.sh             the CI pipeline (lint → types → checks → schema → tests → audits → image scan)
   Dockerfile                API image (gunicorn, non-root, hash-verified dependencies)
   docker-entrypoint.sh      secret key, wait for database, migrations, optional demo seed
   gunicorn.conf.py          workers, timeouts, JSON access and error logs
@@ -166,7 +178,7 @@ frontend/
 | --- | --- |
 | Frontend | React 19, TypeScript 7, Vite 8, React Router 7, lucide-react icons, self-hosted Inter + Poppins (Fontsource) |
 | Styling | Plain CSS with design tokens and `data-theme` light/dark themes; no CSS framework |
-| Backend | Python 3.12, Django 5.2 LTS, Django REST Framework 3.18 |
+| Backend | Python 3.12, Django 5.2 LTS, Django REST Framework 3.18, drf-spectacular (OpenAPI 3) |
 | Serving | gunicorn (API), WhiteNoise (Django admin static files), nginx (SPA + reverse proxy) |
 | Data | PostgreSQL 16 (Docker service and named volume), psycopg 3 with Django's connection pool |
 | Testing | Django test runner + coverage (API), Playwright on Microsoft Edge (end-to-end, three viewports, both themes) |
@@ -398,7 +410,13 @@ is optional and has a safe default.
 | `DJANGO_NUM_PROXIES` | `0` | Reverse proxies in front of the API (throttling keys on the real client IP) |
 | `FRONTEND_URL` | `http://localhost:5173` | Base URL for links in emails |
 | `AUTH_THROTTLE_RATE` | `10/min` | Rate limit for the auth endpoints |
+| `API_PAGE_SIZE` | `25` | Default rows per page on list endpoints |
+| `API_MAX_PAGE_SIZE` | `100` | Largest page a client may request (1–1000) |
+| `IDEMPOTENCY_TTL_HOURS` | `24` | How long a create's stored result is replayed for a retried `Idempotency-Key` (1–720) |
 | `DJANGO_EMAIL_*`, `AUTH_*` | | As in the table above |
+
+`API_PAGE_SIZE`, `API_MAX_PAGE_SIZE` and `IDEMPOTENCY_TTL_HOURS` are also passed
+through by the Docker stack (set them in `backend/.env`).
 
 ### Frontend (build / dev server)
 
@@ -458,8 +476,39 @@ is optional and has a safe default.
 
 ## 9. Backend configuration and API
 
-Base path: `/api/v1/auth/`. Every error has the shape
-`{"error": {"code", "message", "fields"?}}`.
+The full contract is [`backend/openapi.yaml`](backend/openapi.yaml) (OpenAPI 3,
+generated from the code; with `DJANGO_DEBUG=true` it is also served at
+`/api/v1/schema/`). CI fails when the code and the file differ: after an
+intentional API change, review the difference and regenerate it with
+`python manage.py spectacular --file openapi.yaml` (from `backend/`).
+
+### Platform conventions (`backend/platform_core`)
+
+Every module follows these rules; the kernel implements them once.
+
+| Convention | Rule | Where |
+| --- | --- | --- |
+| Errors | `{"error": {"code", "message", "request_id", "fields"?}}` for every API error, including unknown URLs, CSRF failures, rejected hosts and unexpected server errors (no HTML, no stack traces). Codes are listed in `ERROR_CODES` | `errors.py` |
+| Correlation ID | Every response carries `X-Request-ID` (nginx's `$request_id`, else generated); the same ID is in the error body and in every log line of the request, including gunicorn's access line | `request_context.py`, `middleware.py`, `logging.py` |
+| Records | Records exposed through the API have a random UUID `public_id`, used as `"id"` in URLs and responses (integer keys stay internal), plus `created_at` / `updated_at` | `models.py` (`PlatformModel`) |
+| Versioned edits | Editable records carry `version` (starts at 1). An edit states the version it was based on; if the stored version moved on, the answer is `409 version_conflict` with `current_version`. The check and the change are one SQL statement, so of two simultaneous edits exactly one succeeds | `models.py` (`VersionedModel`), `concurrency.py` |
+| Idempotent creates | Creates require an `Idempotency-Key` header (a new UUID per submission). A retry with the same key returns the original response with `Idempotent-Replayed: true`; the same key with a different body is `422 idempotency_key_reused`; a duplicate arriving while the first is still running is `409 request_in_progress`. Keys belong to one user and expire after `IDEMPOTENCY_TTL_HOURS` | `idempotency.py` |
+| Lists | Cursor pages: `?page_size=&cursor=` → `{"next", "previous", "results"}`; newest first by default; page size capped at `API_MAX_PAGE_SIZE`; a bad cursor is `400 invalid_cursor` | `pagination.py` |
+| Filters | Declared per list as a serializer; `q` is free-text search; unknown or repeated parameters are `400 validation_error` | `filtering.py` |
+| Time | Instants in RFC 3339 with an offset, stored and returned in UTC (`…Z`); a time without an offset is rejected. Time zones are canonical IANA names (`Europe/London`; not `EST` or `US/Eastern`). Local times that don't exist (clocks forward) or happen twice (clocks back) are rejected unless the caller picks a side | `timeutils.py`, `fields.py` |
+| Modules | New modules start from `python manage.py startapp <name> --template=platform_core/app_template` (layout: `api/`, `services.py`, `selectors.py`, `policies.py`, `events.py`, `models.py`, `tests/`). Modules may use each other only through `services` and `selectors`; `manage.py check` (and so CI) fails on any other cross-module import | `app_template/`, `boundaries.py` |
+
+`platform_core/tests/reference/` is a test-only module (installed only under
+`manage.py test`) that uses every convention through real HTTP calls; copy its
+shape when building a module.
+
+Expired idempotency records are removed whenever their user stores a new one;
+`python manage.py purge_idempotency_records` removes all of them and can run on
+a schedule.
+
+### Authentication API
+
+Base path: `/api/v1/auth/`.
 
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
@@ -491,9 +540,10 @@ every other URL still accepts only the hosts in `DJANGO_ALLOWED_HOSTS`.
 | `ready/` | `200` when the database answers and every migration is applied; otherwise `503` with `{"status": "unavailable", "checks": {"database", "migrations"}}` | Readiness: route traffic only to ready instances (the Docker health check) |
 
 **Logging** — one JSON object per line on stdout (`timestamp`, `level`,
-`logger`, `message`, plus fields such as `status_code`); gunicorn's access lines
-add `method`, `path` (no query string), `status`, `duration_ms`. Request
-objects, bodies, cookies and headers are never logged. Set
+`logger`, `message`, `request_id`, plus fields such as `status_code`);
+gunicorn's access lines add `method`, `path` (no query string), `status`,
+`duration_ms` and the same `request_id`. Request objects, bodies, cookies and
+headers are never logged. Set
 `DJANGO_LOG_FORMAT=text` for readable local output (the default with `DEBUG`).
 
 ## 10. Authentication workflows
@@ -637,10 +687,12 @@ Steps, each of which must pass:
 2. mypy type check (Django and DRF plugins)
 3. a throwaway PostgreSQL 16 container with a random password (or the database
    in `DATABASE_*` when `DATABASE_HOST` is set, e.g. a CI service container)
-4. Django system checks, and a check that migrations match the models
-5. all backend tests with branch coverage (must stay at 85% or more)
-6. pip-audit on both hash-locked requirement files (no known vulnerabilities)
-7. image build, then a Trivy scan that fails on HIGH or CRITICAL vulnerabilities
+4. Django system checks (including the module boundary rule), and a check that
+   migrations match the models
+5. the OpenAPI schema generates with zero warnings and matches `openapi.yaml`
+6. all backend tests with branch coverage (must stay at 85% or more)
+7. pip-audit on both hash-locked requirement files (no known vulnerabilities)
+8. image build, then a Trivy scan that fails on HIGH or CRITICAL vulnerabilities
    with a fix available
 
 **Frontend CI pipeline** (from any folder, after `npm install` in `frontend/`):
@@ -670,7 +722,13 @@ They cover sign-in to all four workspaces, refused workspaces, revoked
 memberships, anti-enumeration, unverified accounts, remember-me, CSRF, rate
 limiting, registration, verification, password reset, the demo seed command,
 database settings, JSON logging, both health probes (including database down
-and pending migrations) and `wait_for_db`.
+and pending migrations) and `wait_for_db`; and the platform kernel: correlation
+IDs in responses and logs, the error envelope for every error type, public IDs,
+version conflicts (including two truly simultaneous edits), idempotent creates
+(including ten simultaneous duplicates), cursor pagination over 1,000 rows that
+share a timestamp (forwards and backwards, constant query count), strict
+filters, IANA time zones and daylight-saving gaps and overlaps in four zones,
+the OpenAPI contract, the module boundary rule and the module template.
 
 **Changing dependencies:** edit `requirements.in` (runtime) or
 `requirements-dev.in` (tools), then regenerate the locks with the command at the
