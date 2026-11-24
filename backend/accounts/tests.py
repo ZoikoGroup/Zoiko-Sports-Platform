@@ -78,8 +78,11 @@ class LoginWorkspaceTests(AuthTestCase):
         wrong = self.login("known@example.com", "individual", password="nope-nope-nope")
         unknown = self.login("ghost@example.com", "individual")
         self.assertEqual(wrong.status_code, unknown.status_code)
-        self.assertEqual(wrong.data, unknown.data)
-        self.assertEqual(wrong.data["error"]["code"], "invalid_credentials")
+        # Identical apart from the per-request correlation ID.
+        wrong_error, unknown_error = dict(wrong.data["error"]), dict(unknown.data["error"])
+        self.assertNotEqual(wrong_error.pop("request_id"), unknown_error.pop("request_id"))
+        self.assertEqual(wrong_error, unknown_error)
+        self.assertEqual(wrong_error["code"], "invalid_credentials")
 
     def test_email_is_case_insensitive(self):
         self.make_user("case@example.com")

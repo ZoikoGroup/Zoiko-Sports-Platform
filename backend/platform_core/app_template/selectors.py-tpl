@@ -1,0 +1,6 @@
+"""Read-only queries of the {{ app_name }} module (the public read interface).
+
+Every list, count, search and export starts from the rows the acting user may
+see. Lists are paginated with platform_core.pagination.CursorPage and filtered
+with platform_core.filtering.parse_query_params.
+"""

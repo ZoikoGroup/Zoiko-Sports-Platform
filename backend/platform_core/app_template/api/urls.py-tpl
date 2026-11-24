@@ -1,0 +1,7 @@
+"""Routes of the {{ app_name }} API; include them under /api/v1/ in config/urls.py."""
+
+from django.urls import URLPattern
+
+app_name = "{{ app_name }}"
+
+urlpatterns: list[URLPattern] = []

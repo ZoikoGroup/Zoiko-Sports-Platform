@@ -49,6 +49,50 @@ class MembershipSerializer(serializers.ModelSerializer):
         fields = ["organization_id", "organization_name", "organization_kind", "role"]
 
 
+# --- Response shapes (OpenAPI documentation of what the views return) ---------
+
+
+class StatusSerializer(serializers.Serializer):
+    status = serializers.CharField(help_text="ok, accepted, verified or password_changed.")
+
+
+class AccountTypeOptionSerializer(serializers.Serializer):
+    id = serializers.ChoiceField(choices=AccountType.choices)
+    # DRF's metaclass moves declared fields off the class, so this does not shadow Field.label.
+    label = serializers.CharField()  # type: ignore[assignment]
+
+
+class ProviderOptionSerializer(serializers.Serializer):
+    id = serializers.CharField()
+    name = serializers.CharField()
+    enabled = serializers.BooleanField()
+
+
+class AuthConfigSerializer(serializers.Serializer):
+    account_types = AccountTypeOptionSerializer(many=True)
+    providers = ProviderOptionSerializer(many=True)
+    passkeys_enabled = serializers.BooleanField()
+
+
+class SessionUserSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    email = serializers.EmailField()
+    full_name = serializers.CharField()
+
+
+class SessionSerializer(serializers.Serializer):
+    """`authenticated` is always present; the other fields only when it is true."""
+
+    authenticated = serializers.BooleanField()
+    user = SessionUserSerializer(required=False)
+    account_type = serializers.ChoiceField(choices=AccountType.choices, required=False, allow_null=True)
+    active_organization_id = serializers.IntegerField(required=False, allow_null=True)
+    available_account_types = serializers.ListField(
+        child=serializers.ChoiceField(choices=AccountType.choices), required=False
+    )
+    memberships = MembershipSerializer(many=True, required=False)
+
+
 def session_payload(request) -> dict:
     user = request.user
     active_org_id = request.session.get("organization_id")

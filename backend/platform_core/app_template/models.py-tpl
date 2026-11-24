@@ -1,0 +1,6 @@
+"""Tables of the {{ app_name }} module.
+
+Records exposed through the API extend platform_core.models.PlatformModel
+(public UUID + timestamps); records edited by users also extend VersionedModel,
+and change only through platform_core.concurrency.update_versioned.
+"""

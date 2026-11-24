@@ -6,6 +6,8 @@ Django>=5.2.19,<5.3
 djangorestframework>=3.18.3,<3.19
 gunicorn>=23.0
 whitenoise>=6.9
+# OpenAPI 3 schema generated from the DRF views (checked in CI against openapi.yaml).
+drf-spectacular>=0.28
 # PostgreSQL 16 driver; "pool" enables Django's built-in connection pooling.
 psycopg[binary,pool]>=3.2
 # Loads backend/.env for processes run on the host (never inside the image).

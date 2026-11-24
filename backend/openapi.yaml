@@ -1,0 +1,688 @@
+openapi: 3.0.3
+info:
+  title: Zoiko Sports API
+  version: 1.0.0
+  description: 'Conventions: errors use {"error": {code, message, request_id, fields?}};
+    every response carries X-Request-ID; lists use cursor pagination ({next, previous,
+    results}); creates take an Idempotency-Key header; edits state the `version` they
+    are based on and get 409 version_conflict when it moved; instants are RFC 3339
+    in UTC; time zones are IANA names.'
+paths:
+  /api/v1/auth/config/:
+    get:
+      operationId: auth_config_retrieve
+      description: Which sign-in methods are genuinely available in this environment.
+      summary: Available sign-in methods
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthConfig'
+          description: ''
+  /api/v1/auth/csrf/:
+    get:
+      operationId: auth_csrf_retrieve
+      description: Sets the CSRF cookie the SPA echoes back in X-CSRFToken.
+      summary: Set the CSRF cookie
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+          description: ''
+  /api/v1/auth/login/:
+    post:
+      operationId: auth_login_create
+      summary: Sign in to a workspace
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid request (validation_error, invalid_cursor, idempotency_key_required,
+            ...).
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not allowed (permission_denied, csrf_failed, or a module-specific
+            code).
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimited'
+          description: Too many requests (rate_limited with retry_after).
+  /api/v1/auth/logout/:
+    post:
+      operationId: auth_logout_create
+      summary: Sign out
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not allowed (permission_denied, csrf_failed, or a module-specific
+            code).
+  /api/v1/auth/password-reset/:
+    post:
+      operationId: auth_password_reset_create
+      summary: Request a password-reset link
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EmailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EmailRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+          description: Accepted. Identical for registered and unknown addresses.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid request (validation_error, invalid_cursor, idempotency_key_required,
+            ...).
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not allowed (permission_denied, csrf_failed, or a module-specific
+            code).
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimited'
+          description: Too many requests (rate_limited with retry_after).
+  /api/v1/auth/password-reset/confirm/:
+    post:
+      operationId: auth_password_reset_confirm_create
+      summary: Set a new password from a reset link
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid request (validation_error, invalid_cursor, idempotency_key_required,
+            ...).
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not allowed (permission_denied, csrf_failed, or a module-specific
+            code).
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimited'
+          description: Too many requests (rate_limited with retry_after).
+  /api/v1/auth/providers/{provider}/start/:
+    post:
+      operationId: auth_providers_start_create
+      description: 'No provider flow is connected yet: every call returns an error
+        explaining why.'
+      summary: Start federated sign-in
+      parameters:
+      - in: path
+        name: provider
+        schema:
+          type: string
+        required: true
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not allowed (permission_denied, csrf_failed, or a module-specific
+            code).
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not found, or not visible to the caller (not_found).
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimited'
+          description: Too many requests (rate_limited with retry_after).
+        '501':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not implemented in this environment.
+        '503':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Temporarily unavailable.
+  /api/v1/auth/register/:
+    post:
+      operationId: auth_register_create
+      summary: Register an account
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+          description: Accepted. Identical for registered and unknown addresses.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid request (validation_error, invalid_cursor, idempotency_key_required,
+            ...).
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not allowed (permission_denied, csrf_failed, or a module-specific
+            code).
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimited'
+          description: Too many requests (rate_limited with retry_after).
+  /api/v1/auth/session/:
+    get:
+      operationId: auth_session_retrieve
+      summary: Current session
+      tags:
+      - auth
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+  /api/v1/auth/verify-email/:
+    post:
+      operationId: auth_verify_email_create
+      summary: Verify an email address
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid request (validation_error, invalid_cursor, idempotency_key_required,
+            ...).
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not allowed (permission_denied, csrf_failed, or a module-specific
+            code).
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimited'
+          description: Too many requests (rate_limited with retry_after).
+  /api/v1/auth/verify-email/resend/:
+    post:
+      operationId: auth_verify_email_resend_create
+      summary: Send a new verification link
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/EmailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/EmailRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+          description: Accepted. Identical for registered and unknown addresses.
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid request (validation_error, invalid_cursor, idempotency_key_required,
+            ...).
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not allowed (permission_denied, csrf_failed, or a module-specific
+            code).
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimited'
+          description: Too many requests (rate_limited with retry_after).
+components:
+  schemas:
+    AccountTypeEnum:
+      enum:
+      - organization
+      - venue
+      - club
+      - individual
+      type: string
+      description: |-
+        * `organization` - Organization
+        * `venue` - Venue
+        * `club` - Team / Club
+        * `individual` - Individual
+    AccountTypeOption:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/AccountTypeEnum'
+        label:
+          type: string
+      required:
+      - id
+      - label
+    AuthConfig:
+      type: object
+      properties:
+        account_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountTypeOption'
+        providers:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProviderOption'
+        passkeys_enabled:
+          type: boolean
+      required:
+      - account_types
+      - passkeys_enabled
+      - providers
+    EmailRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
+    Error:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+      required:
+      - error
+    ErrorDetail:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Stable, machine-readable error code.
+        message:
+          type: string
+          description: Message that is safe to show to the user.
+        request_id:
+          type: string
+          description: Correlation ID of the request (also in X-Request-ID).
+        fields:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          description: Messages per input field, when the error concerns specific
+            fields.
+      required:
+      - code
+      - message
+      - request_id
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+        account_type:
+          $ref: '#/components/schemas/AccountTypeEnum'
+        remember:
+          type: boolean
+          default: false
+      required:
+      - account_type
+      - email
+      - password
+    Membership:
+      type: object
+      properties:
+        organization_id:
+          type: integer
+        organization_name:
+          type: string
+        organization_kind:
+          type: string
+        role:
+          type: string
+          maxLength: 60
+      required:
+      - organization_id
+      - organization_kind
+      - organization_name
+      - role
+    NullEnum:
+      enum:
+      - null
+    PasswordResetConfirmRequest:
+      type: object
+      properties:
+        uid:
+          type: string
+          minLength: 1
+        token:
+          type: string
+          minLength: 1
+        new_password:
+          type: string
+          minLength: 1
+      required:
+      - new_password
+      - token
+      - uid
+    ProviderOption:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        enabled:
+          type: boolean
+      required:
+      - enabled
+      - id
+      - name
+    RateLimited:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/RateLimitedDetail'
+      required:
+      - error
+    RateLimitedDetail:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Stable, machine-readable error code.
+        message:
+          type: string
+          description: Message that is safe to show to the user.
+        request_id:
+          type: string
+          description: Correlation ID of the request (also in X-Request-ID).
+        fields:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          description: Messages per input field, when the error concerns specific
+            fields.
+        retry_after:
+          type: integer
+          description: Seconds to wait before retrying.
+      required:
+      - code
+      - message
+      - request_id
+      - retry_after
+    RegisterRequest:
+      type: object
+      properties:
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 150
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+      required:
+      - email
+      - full_name
+      - password
+    Session:
+      type: object
+      description: '`authenticated` is always present; the other fields only when
+        it is true.'
+      properties:
+        authenticated:
+          type: boolean
+        user:
+          $ref: '#/components/schemas/SessionUser'
+        account_type:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/AccountTypeEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        active_organization_id:
+          type: integer
+          nullable: true
+        available_account_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountTypeEnum'
+        memberships:
+          type: array
+          items:
+            $ref: '#/components/schemas/Membership'
+      required:
+      - authenticated
+    SessionUser:
+      type: object
+      properties:
+        id:
+          type: integer
+        email:
+          type: string
+          format: email
+        full_name:
+          type: string
+      required:
+      - email
+      - full_name
+      - id
+    Status:
+      type: object
+      properties:
+        status:
+          type: string
+          description: ok, accepted, verified or password_changed.
+      required:
+      - status
+    TokenRequest:
+      type: object
+      properties:
+        uid:
+          type: string
+          minLength: 1
+        token:
+          type: string
+          minLength: 1
+      required:
+      - token
+      - uid
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid

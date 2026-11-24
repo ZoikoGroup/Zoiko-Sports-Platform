@@ -16,7 +16,7 @@ from config.database import DatabaseConfigError, database_from_env
 from platform_core import health
 from platform_core.logging import JsonFormatter
 
-SETTINGS_FILE = Path(__file__).resolve().parent.parent / "config" / "settings.py"
+SETTINGS_FILE = Path(__file__).resolve().parents[2] / "config" / "settings.py"
 
 
 def load_settings(env: dict[str, str]) -> ModuleType:

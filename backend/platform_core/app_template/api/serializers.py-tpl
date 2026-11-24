@@ -1,0 +1,6 @@
+"""Request and response shapes of the {{ app_name }} API.
+
+Use platform_core.fields (AwareDateTimeField, TimeZoneField) and
+platform_core.concurrency.VersionField for instants, time zones and versions,
+and expose a record's public_id as "id".
+"""

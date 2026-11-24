@@ -13,20 +13,26 @@ from django.contrib.auth import authenticate, login, logout, password_validation
 from django.core.exceptions import ValidationError
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
+from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from platform_core.errors import ApiError
+from platform_core.openapi import error_responses
+
 from . import emails
-from .errors import ApiError
 from .models import AccountType, Organization, User
 from .serializers import (
+    AuthConfigSerializer,
     EmailSerializer,
     LoginSerializer,
     PasswordResetConfirmSerializer,
     RegisterSerializer,
+    SessionSerializer,
+    StatusSerializer,
     TokenSerializer,
     session_payload,
 )
@@ -35,6 +41,12 @@ from .tokens import email_verification_token, password_reset_token, user_from_ui
 logger = logging.getLogger(__name__)
 
 ACCEPTED = {"status": "accepted"}
+TAGS = ["auth"]
+# Anonymous, CSRF-protected and rate-limited endpoints share these error responses.
+PUBLIC_WRITE_ERRORS = error_responses(400, 403, 429)
+ACCEPTED_RESPONSE = OpenApiResponse(
+    StatusSerializer, description="Accepted. Identical for registered and unknown addresses."
+)
 
 
 class PublicView(APIView):
@@ -51,6 +63,7 @@ class ThrottledPublicView(PublicView):
 class CsrfView(PublicView):
     """Sets the CSRF cookie the SPA echoes back in X-CSRFToken."""
 
+    @extend_schema(tags=TAGS, summary="Set the CSRF cookie", responses={200: StatusSerializer})
     def get(self, request):
         return Response({"status": "ok"})
 
@@ -58,6 +71,7 @@ class CsrfView(PublicView):
 class AuthConfigView(PublicView):
     """Which sign-in methods are genuinely available in this environment."""
 
+    @extend_schema(tags=TAGS, summary="Available sign-in methods", responses={200: AuthConfigSerializer})
     def get(self, request):
         return Response(
             {
@@ -73,6 +87,7 @@ class AuthConfigView(PublicView):
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
 class SessionView(PublicView):
+    @extend_schema(tags=TAGS, summary="Current session", responses={200: SessionSerializer})
     def get(self, request):
         if not request.user.is_authenticated:
             return Response({"authenticated": False})
@@ -80,6 +95,12 @@ class SessionView(PublicView):
 
 
 class LoginView(ThrottledPublicView):
+    @extend_schema(
+        tags=TAGS,
+        summary="Sign in to a workspace",
+        request=LoginSerializer,
+        responses={200: SessionSerializer, **PUBLIC_WRITE_ERRORS},
+    )
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -131,12 +152,21 @@ class LoginView(ThrottledPublicView):
 
 @method_decorator(csrf_protect, name="dispatch")
 class LogoutView(PublicView):
+    @extend_schema(
+        tags=TAGS, summary="Sign out", request=None, responses={200: SessionSerializer, **error_responses(403)}
+    )
     def post(self, request):
         logout(request)
         return Response({"authenticated": False})
 
 
 class RegisterView(ThrottledPublicView):
+    @extend_schema(
+        tags=TAGS,
+        summary="Register an account",
+        request=RegisterSerializer,
+        responses={202: ACCEPTED_RESPONSE, **PUBLIC_WRITE_ERRORS},
+    )
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -155,6 +185,12 @@ class RegisterView(ThrottledPublicView):
 
 
 class VerifyEmailView(ThrottledPublicView):
+    @extend_schema(
+        tags=TAGS,
+        summary="Verify an email address",
+        request=TokenSerializer,
+        responses={200: StatusSerializer, **PUBLIC_WRITE_ERRORS},
+    )
     def post(self, request):
         serializer = TokenSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -167,6 +203,12 @@ class VerifyEmailView(ThrottledPublicView):
 
 
 class ResendVerificationView(ThrottledPublicView):
+    @extend_schema(
+        tags=TAGS,
+        summary="Send a new verification link",
+        request=EmailSerializer,
+        responses={202: ACCEPTED_RESPONSE, **PUBLIC_WRITE_ERRORS},
+    )
     def post(self, request):
         serializer = EmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -177,6 +219,12 @@ class ResendVerificationView(ThrottledPublicView):
 
 
 class PasswordResetView(ThrottledPublicView):
+    @extend_schema(
+        tags=TAGS,
+        summary="Request a password-reset link",
+        request=EmailSerializer,
+        responses={202: ACCEPTED_RESPONSE, **PUBLIC_WRITE_ERRORS},
+    )
     def post(self, request):
         serializer = EmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -187,6 +235,12 @@ class PasswordResetView(ThrottledPublicView):
 
 
 class PasswordResetConfirmView(ThrottledPublicView):
+    @extend_schema(
+        tags=TAGS,
+        summary="Set a new password from a reset link",
+        request=PasswordResetConfirmSerializer,
+        responses={200: StatusSerializer, **PUBLIC_WRITE_ERRORS},
+    )
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -208,6 +262,13 @@ class PasswordResetConfirmView(ThrottledPublicView):
 class ProviderStartView(ThrottledPublicView):
     """Entry point for federated sign-in. No provider flow is connected yet."""
 
+    @extend_schema(
+        tags=TAGS,
+        summary="Start federated sign-in",
+        description="No provider flow is connected yet: every call returns an error explaining why.",
+        request=None,
+        responses=error_responses(403, 404, 429, 501, 503),
+    )
     def post(self, request, provider):
         config = settings.AUTH_PROVIDERS.get(provider)
         if config is None:

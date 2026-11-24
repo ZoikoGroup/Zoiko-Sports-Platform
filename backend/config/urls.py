@@ -1,8 +1,21 @@
+from django.conf import settings
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import URLPattern, URLResolver, include, path
 
-urlpatterns = [
+urlpatterns: list[URLPattern | URLResolver] = [
     path("admin/", admin.site.urls),
     path("api/v1/auth/", include("accounts.urls")),
     path("api/v1/health/", include("platform_core.urls")),
 ]
+
+if settings.DEBUG:
+    # The OpenAPI schema, for local tooling only; production does not publish its API map.
+    from drf_spectacular.views import SpectacularAPIView
+
+    urlpatterns.append(path("api/v1/schema/", SpectacularAPIView.as_view(), name="openapi-schema"))
+
+# /api/ paths answer in the platform error envelope; other paths keep Django's pages.
+handler400 = "platform_core.errors.bad_request"
+handler403 = "platform_core.errors.permission_denied"
+handler404 = "platform_core.errors.not_found"
+handler500 = "platform_core.errors.server_error"

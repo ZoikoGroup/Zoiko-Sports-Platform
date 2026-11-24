@@ -41,18 +41,23 @@ class JsonAccessLogger(Logger):
             return
         atoms = self.atoms(resp, req, environ, request_time)
         status = str(atoms["s"])
-        self.access_log.info(
-            "request",
-            extra={
-                "method": atoms["m"],
-                "path": atoms["U"],
-                "status": int(status) if status.isdigit() else status,
-                "duration_ms": round(request_time.total_seconds() * 1000, 1),
-                "bytes": atoms["B"],
-                "remote_addr": atoms["h"],
-                "protocol": atoms["H"],
-            },
+        extra = {
+            "method": atoms["m"],
+            "path": atoms["U"],
+            "status": int(status) if status.isdigit() else status,
+            "duration_ms": round(request_time.total_seconds() * 1000, 1),
+            "bytes": atoms["B"],
+            "remote_addr": atoms["h"],
+            "protocol": atoms["H"],
+        }
+        # The correlation ID Django set on the response (platform_core.middleware),
+        # so an access line joins the application lines of the same request.
+        request_id = next(
+            (value for name, value in getattr(resp, "headers", []) if name.lower() == "x-request-id"), None
         )
+        if request_id:
+            extra["request_id"] = request_id
+        self.access_log.info("request", extra=extra)
 
 
 logger_class = JsonAccessLogger
