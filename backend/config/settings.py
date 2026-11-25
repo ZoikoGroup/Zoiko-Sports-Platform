@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "platform_core",
     "accounts",
+    "organizations",
 ]
 
 # `manage.py test` (also under coverage) adds the kernel's reference module: a
@@ -93,6 +94,8 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Re-checks the account and its workspace context on every request (P2).
+    "accounts.middleware.WorkspaceContextMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -131,6 +134,18 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+# Argon2id (OWASP minimum cost, see accounts/hashers.py) for new passwords. The
+# others only verify older hashes, which are upgraded at the next successful sign-in.
+PASSWORD_HASHERS = [
+    "accounts.hashers.Argon2idHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+    "django.contrib.auth.hashers.ScryptPasswordHasher",
+]
+if TESTING:
+    # Fast hashing keeps the suite quick; tests of hashing itself override this.
+    PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher", *PASSWORD_HASHERS]
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
@@ -153,7 +168,9 @@ SECURE_COOKIES = env_bool("DJANGO_SECURE_COOKIES", not DEBUG)
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_SECURE = SECURE_COOKIES
-SESSION_COOKIE_AGE = 60 * 60 * 24 * 14  # "Keep me signed in" lifetime
+# "Keep me signed in" lifetime. Without it a session ends when the browser closes.
+SESSION_REMEMBER_DAYS = env_int("SESSION_REMEMBER_DAYS", 14, minimum=1, maximum=90)
+SESSION_COOKIE_AGE = 60 * 60 * 24 * SESSION_REMEMBER_DAYS
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_SECURE = SECURE_COOKIES
 CSRF_COOKIE_HTTPONLY = False  # the SPA reads it to send X-CSRFToken
@@ -180,6 +197,7 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_THROTTLE_RATES": {
         "auth": env_str("AUTH_THROTTLE_RATE", "10/min"),
+        "invitation": env_str("INVITATION_THROTTLE_RATE", "30/min"),
     },
     "EXCEPTION_HANDLER": "platform_core.errors.exception_handler",
     "DEFAULT_PAGINATION_CLASS": "platform_core.pagination.CursorPage",
@@ -195,6 +213,10 @@ API_MAX_PAGE_SIZE = env_int("API_MAX_PAGE_SIZE", 100, minimum=1, maximum=1000)
 API_PAGE_SIZE = env_int("API_PAGE_SIZE", min(25, API_MAX_PAGE_SIZE), minimum=1, maximum=API_MAX_PAGE_SIZE)
 # How long a stored Idempotency-Key outcome is replayed (platform_core.idempotency).
 IDEMPOTENCY_TTL = timedelta(hours=env_int("IDEMPOTENCY_TTL_HOURS", 24, minimum=1, maximum=24 * 30))
+
+# --- Organizations and invitations (organizations module) -------------------
+# How long an emailed invitation link stays valid.
+INVITATION_TTL = timedelta(days=env_int("INVITATION_TTL_DAYS", 7, minimum=1, maximum=30))
 
 # --- API documentation (OpenAPI 3, drf-spectacular) --------------------------
 # The schema is generated from the code; backend/openapi.yaml is the reviewed copy
@@ -212,7 +234,12 @@ SPECTACULAR_SETTINGS = {
     "SCHEMA_PATH_PREFIX": r"/api/v1",
     "COMPONENT_SPLIT_REQUEST": True,
     # One schema name per shared choice set.
-    "ENUM_NAME_OVERRIDES": {"AccountTypeEnum": "accounts.models.AccountType"},
+    "ENUM_NAME_OVERRIDES": {
+        "AccountTypeEnum": "accounts.models.AccountType",
+        "ContextStatusEnum": "accounts.serializers.CONTEXT_STATUSES",
+        "OrganizationKindEnum": "organizations.models.Organization.Kind",
+        "InvitationStateEnum": "organizations.api.serializers.INVITATION_STATES",
+    },
 }
 
 # --- Email -----------------------------------------------------------------

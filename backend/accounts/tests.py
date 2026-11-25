@@ -10,7 +10,10 @@ from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 from rest_framework.throttling import ScopedRateThrottle
 
-from .models import Membership, Organization, User
+from organizations.models import Membership, Organization
+from organizations.selectors import eligible_contexts
+
+from .models import User
 
 PASSWORD = "Correct-Horse-91"
 API = "/api/v1/auth"
@@ -22,9 +25,10 @@ class AuthTestCase(TestCase):
     def setUp(self):
         cache.clear()  # throttle counters
         self.client = APIClient(enforce_csrf_checks=True)
-        self.organizer = Organization.objects.create(name="Riverside Invitational", kind=Organization.Kind.ORGANIZER)
-        self.venue = Organization.objects.create(name="Northfield Arena", kind=Organization.Kind.VENUE)
-        self.club = Organization.objects.create(name="Club A", kind=Organization.Kind.CLUB)
+        active = Organization.Status.ACTIVE
+        self.organizer = Organization.objects.create(name="Riverside Invitational", kind="organizer", status=active)
+        self.venue = Organization.objects.create(name="Northfield Arena", kind="venue", status=active)
+        self.club = Organization.objects.create(name="Club A", kind="club", status=active)
 
     def make_user(self, email, *orgs, **extra):
         user = User.objects.create_user(email, PASSWORD, full_name="Test User", **extra)
@@ -48,30 +52,43 @@ class AuthTestCase(TestCase):
 class LoginWorkspaceTests(AuthTestCase):
     def test_each_of_the_four_workspaces_signs_in(self):
         self.make_user("multi@example.com", self.organizer, self.venue, self.club)
-        expected = {"organization": self.organizer.pk, "venue": self.venue.pk, "club": self.club.pk, "individual": None}
-        for account_type, org_id in expected.items():
+        expected = {
+            "organization": str(self.organizer.public_id),
+            "venue": str(self.venue.public_id),
+            "club": str(self.club.public_id),
+            "individual": "individual",
+        }
+        for account_type, context_id in expected.items():
             with self.subTest(account_type=account_type):
                 response = self.login("multi@example.com", account_type)
                 self.assertEqual(response.status_code, 200, response.data)
-                self.assertEqual(response.data["account_type"], account_type)
-                self.assertEqual(response.data["active_organization_id"], org_id)
+                self.assertEqual(response.data["context"]["account_type"], account_type)
+                self.assertEqual(response.data["context"]["id"], context_id)
+                self.assertTrue(response.data["preference_matched"])
                 session = self.client.get(f"{API}/session/").data
                 self.assertTrue(session["authenticated"])
-                self.assertEqual(session["account_type"], account_type)
+                self.assertEqual(session["context"]["id"], context_id)
+                self.assertEqual(session["context_status"], "active")
                 self.post("logout", {})
 
-    def test_workspace_without_membership_is_refused(self):
+    def test_tile_without_membership_grants_nothing(self):
         self.make_user("club@example.com", self.club)
         response = self.login("club@example.com", "venue")
-        self.assertEqual(response.status_code, 403)
-        self.assertEqual(response.data["error"]["code"], "workspace_unavailable")
-        self.assertEqual(response.data["error"]["fields"]["available_account_types"], ["club", "individual"])
-        self.assertFalse(self.client.get(f"{API}/session/").data["authenticated"])
+        # Signed in, but the tile neither grants Venue nor picks a context on its own.
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.data["context"])
+        self.assertFalse(response.data["preference_matched"])
+        self.assertEqual(response.data["context_status"], "selection_required")
+        self.assertEqual([c["account_type"] for c in response.data["contexts"]], ["club", "individual"])
+        self.assertEqual(self.client.get("/api/v1/me/context/").data["error"]["code"], "context_required")
 
-    def test_suspended_membership_does_not_grant_workspace(self):
+    def test_revoked_membership_does_not_grant_workspace(self):
         user = self.make_user("old@example.com", self.venue)
         Membership.objects.filter(user=user).update(status=Membership.Status.REVOKED)
-        self.assertEqual(self.login("old@example.com", "venue").status_code, 403)
+        response = self.login("old@example.com", "venue")
+        # The only context left (Individual) is entered; Venue is not offered.
+        self.assertEqual(response.data["context"]["account_type"], "individual")
+        self.assertEqual([c["account_type"] for c in response.data["contexts"]], ["individual"])
 
     def test_wrong_password_and_unknown_email_get_the_same_error(self):
         self.make_user("known@example.com")
@@ -140,6 +157,14 @@ class RegistrationTests(AuthTestCase):
         self.assertEqual(self.post("verify-email", params).status_code, 400)  # single use
         self.assertEqual(self.login("pat@example.com", "individual").status_code, 200)
 
+    def test_registration_requests_nothing_and_grants_no_membership(self):
+        # Extra fields such as a chosen workspace or role are ignored: joining takes an invitation.
+        payload = {"full_name": "Pat Doe", "email": "pat@example.com", "password": PASSWORD}
+        response = self.post("register", {**payload, "account_type": "organization", "role": "competition_director"})
+        self.assertEqual(response.status_code, 202)
+        user = User.objects.get(email="pat@example.com")
+        self.assertFalse(Membership.objects.filter(user=user).exists())
+
     def test_register_existing_email_is_indistinguishable(self):
         self.make_user("taken@example.com")
         response = self.post("register", {"full_name": "X", "email": "taken@example.com", "password": PASSWORD})
@@ -180,6 +205,7 @@ class PasswordResetTests(AuthTestCase):
 class ConfigAndProviderTests(AuthTestCase):
     def test_config_lists_four_account_types_and_providers(self):
         data = self.client.get(f"{API}/config/").data
+        self.assertEqual(data["session_remember_days"], 14)
         self.assertEqual([t["id"] for t in data["account_types"]], ["organization", "venue", "club", "individual"])
         self.assertEqual({p["id"] for p in data["providers"]}, {"google", "microsoft", "apple", "sso"})
 
@@ -202,7 +228,12 @@ class SeedDemoCommandTests(TestCase):
         self.assertNotIn(PASSWORD, output)
         demo = User.objects.get(email="demo@zoikosports.test")
         self.assertTrue(demo.check_password(PASSWORD))
-        self.assertEqual(demo.available_account_types(), ["organization", "venue", "club", "individual"])
+        self.assertEqual(
+            [c.account_type for c in eligible_contexts(demo)], ["organization", "venue", "club", "individual"]
+        )
+        # Re-running keeps one verified organization per name.
+        self.run_seed(ZS_DEMO_PASSWORD=PASSWORD)
+        self.assertEqual(Organization.objects.filter(status=Organization.Status.ACTIVE).count(), 3)
 
     @override_settings(DEBUG=True)
     def test_requires_a_password_from_the_environment(self):
