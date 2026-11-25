@@ -1,23 +1,23 @@
-import { LogOut } from 'lucide-react'
+import { ArrowLeftRight, LogOut } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { SignedInSession } from '../api/auth'
 import { accountTypeLabel } from '../auth/accountTypes'
 import { useAuth } from '../auth/AuthContext'
+import { CHOOSE_WORKSPACE, humanizeRole } from '../auth/roles'
 import { CardHeader } from '../components/CardHeader'
 import { Alert } from '../components/form/Alert'
 import { Button } from '../components/form/Button'
 import './pages.css'
 
-const humanize = (role: string) => role.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase())
-
-/** Signed-in landing: confirms which workspace the session is scoped to. */
+/** Signed-in landing: confirms which workspace (context) the session acts in. */
 export function WorkspacePage() {
-  const { session, logout } = useAuth()
+  const { session, logout, unmatchedTile } = useAuth()
   const navigate = useNavigate()
   const [signingOut, setSigningOut] = useState(false)
   const current = session as SignedInSession
-  const membership = current.memberships.find((m) => m.organization_id === current.active_organization_id)
+  // The gate admits this page only with an active context.
+  const context = current.context!
 
   async function signOut() {
     setSigningOut(true)
@@ -36,20 +36,26 @@ export function WorkspacePage() {
         subtitle="You're signed in to Zoiko Sports."
         documentTitle="Workspace"
       />
+      {unmatchedTile && (
+        <Alert tone="info">
+          This account doesn't have a {accountTypeLabel(unmatchedTile)} workspace, so you're in your{' '}
+          {accountTypeLabel(context.account_type)} workspace.
+        </Alert>
+      )}
       <dl className="workspace-summary" aria-label="Current session">
         <div>
           <dt>Workspace</dt>
-          <dd data-testid="workspace-type">{accountTypeLabel(current.account_type)}</dd>
+          <dd data-testid="workspace-type">{accountTypeLabel(context.account_type)}</dd>
         </div>
-        {membership && (
+        {context.organization && (
           <>
             <div>
               <dt>Organization</dt>
-              <dd data-testid="workspace-organization">{membership.organization_name}</dd>
+              <dd data-testid="workspace-organization">{context.organization.name}</dd>
             </div>
             <div>
               <dt>Role</dt>
-              <dd>{humanize(membership.role)}</dd>
+              <dd>{humanizeRole(context.role)}</dd>
             </div>
           </>
         )}
@@ -59,6 +65,16 @@ export function WorkspacePage() {
         </div>
       </dl>
       <Alert tone="info">Workspace tools for this account type are not available in this build yet.</Alert>
+      {current.contexts.length > 1 && (
+        <Button
+          variant="secondary"
+          onClick={() => navigate(CHOOSE_WORKSPACE)}
+          trailingIcon={<ArrowLeftRight size={18} aria-hidden="true" />}
+          className="workspace-switch"
+        >
+          Switch workspace
+        </Button>
+      )}
       <Button
         variant="secondary"
         onClick={signOut}

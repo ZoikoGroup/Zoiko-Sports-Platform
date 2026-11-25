@@ -8,7 +8,7 @@
 // and seeded in place.
 import { execFileSync, spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
-import { existsSync, mkdirSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -63,8 +63,7 @@ const database = process.env.E2E_DATABASE_HOST
     }
   : startDatabase()
 
-const env = {
-  ...process.env,
+const settings = {
   ...database,
   // Configured entirely here: never read a developer's backend/.env.
   DJANGO_READ_DOTENV: 'false',
@@ -75,7 +74,13 @@ const env = {
   AUTH_THROTTLE_RATE: '1000/min',
   FRONTEND_URL: process.env.E2E_BASE_URL ?? 'http://127.0.0.1:5183',
 }
+const env = { ...process.env, ...settings }
 const manage = (...args) => execFileSync(python, ['manage.py', ...args], { cwd: backend, env, stdio: 'inherit' })
+
+// Tests run operator commands (e.g. `organizations invite`) against this same
+// throwaway backend (e2e/manage.ts). Only the variables set above are saved,
+// in the git-ignored .tmp folder that is wiped at the start of every run.
+writeFileSync(join(tmp, 'backend.json'), JSON.stringify({ python, backend, settings }), { mode: 0o600 })
 
 process.on('exit', removeContainer)
 try {

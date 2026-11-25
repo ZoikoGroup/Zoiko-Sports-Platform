@@ -1,5 +1,6 @@
  import { expect, test, type Page } from '@playwright/test'
-import { linkFromEmail } from './mail'
+import { invitationLinkFromEmail, linkFromEmail } from './mail'
+import { manage, organizationId } from './manage'
 
 // Random per run (playwright.config.ts) and seeded into the throwaway backend.
 const DEMO_PASSWORD = process.env.E2E_DEMO_PASSWORD!
@@ -61,16 +62,30 @@ test.describe('sign in to each of the four workspaces', () => {
 })
 
 test.describe('sign-in errors', () => {
-  test('wrong workspace offers the ones the account has', async ({ page }) => {
+  test('a tile the account lacks grants nothing: the account picks one of its own workspaces', async ({ page }) => {
     await page.goto('/login')
     await signIn(page, 'club@zoikosports.test', DEMO_PASSWORD, 'Venue (Stadium / Arena)')
 
-    const alert = page.getByRole('alert')
-    await expect(alert).toContainText("doesn't have access to a Venue workspace")
-    await alert.getByRole('button', { name: 'Use Team / Club' }).click()
-    await expect(page.getByRole('radio', { name: 'Team / Club (Sports Team)' })).toBeChecked()
-    await page.getByRole('button', { name: 'Sign In', exact: true }).click()
+    await expect(page).toHaveURL(/\/choose-workspace$/)
+    await expect(page.getByRole('status').filter({ hasText: "doesn't have a Venue workspace" })).toBeVisible()
+    const choices = page.getByRole('list', { name: 'Your workspaces' }).getByRole('button')
+    await expect(choices).toHaveCount(2)
+    await expect(choices.nth(0)).toContainText('Team / Club · Club A')
+    await expect(choices.nth(1)).toContainText('Individual')
+    // Members-only pages need a chosen workspace.
+    await page.goto('/workspace')
+    await expect(page).toHaveURL(/\/choose-workspace$/)
+
+    await page.getByRole('button', { name: /Team \/ Club · Club A/ }).click()
+    await expect(page).toHaveURL(/\/workspace$/)
     await expect(page.getByTestId('workspace-organization')).toHaveText('Club A')
+
+    // Switching keeps the person signed in.
+    await page.getByRole('button', { name: 'Switch workspace' }).click()
+    await page.getByRole('button', { name: /^Individual/ }).click()
+    await expect(page).toHaveURL(/\/workspace$/)
+    await expect(page.getByTestId('workspace-type')).toHaveText('Individual')
+    await expect(page.getByTestId('workspace-organization')).toHaveCount(0)
   })
 
   test('invalid credentials are reported without revealing which part was wrong', async ({ page }) => {
@@ -211,6 +226,55 @@ test.describe('account lifecycle', () => {
     await page.goto('/login')
     await signIn(page, email, 'Second-Half-2026!', 'Individual (Participant / Staff)')
     await expect(page.getByTestId('workspace-type')).toHaveText('Individual')
+  })
+})
+
+test.describe('invitations', () => {
+  test('an invited person signs in, accepts and lands in the organization workspace', async ({ page }) => {
+    const email = uniqueEmail('invitee')
+    await page.goto('/register')
+    await page.getByLabel('Full name').fill('Ivy Invitee')
+    await page.getByLabel('Email address').fill(email)
+    await page.getByLabel('Password', { exact: true }).fill(NEW_PASSWORD)
+    await page.getByRole('button', { name: 'Create account' }).click()
+    await page.goto(await linkFromEmail(email, '/verify-email'))
+    await expect(page.getByRole('heading', { name: 'Email verified' })).toBeVisible()
+
+    // A Zoiko operator invites the address to Club A (tokens are emailed, never printed).
+    const output = manage('organizations', 'invite', organizationId('Club A'), '--email', email, '--role', 'club_coordinator')
+    expect(output).toContain('emailed')
+    const link = await invitationLinkFromEmail(email)
+
+    await page.goto(link)
+    await expect(page.getByRole('heading', { name: "You're invited" })).toBeVisible()
+    await expect(page.getByTestId('invitation-organization')).toHaveText('Club A')
+    // The token leaves the address bar once read.
+    await expect(page).toHaveURL(/\/invitations\/accept$/)
+
+    await page.getByRole('button', { name: 'Sign in to accept' }).click()
+    await signIn(page, email, NEW_PASSWORD, 'Individual (Participant / Staff)')
+    await expect(page).toHaveURL(/\/invitations\/accept$/)
+    await page.getByRole('button', { name: 'Accept invitation' }).click()
+
+    await expect(page).toHaveURL(/\/workspace$/)
+    await expect(page.getByTestId('workspace-type')).toHaveText('Team / Club')
+    await expect(page.getByTestId('workspace-organization')).toHaveText('Club A')
+
+    // Single use.
+    await page.goto(link)
+    await expect(page.getByRole('status').filter({ hasText: 'already been used' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Accept invitation' })).toHaveCount(0)
+  })
+
+  test('an invitation cannot be accepted by a different account', async ({ page }) => {
+    const email = uniqueEmail('intended')
+    manage('organizations', 'invite', organizationId('Northfield Arena'), '--email', email, '--role', 'steward')
+    await page.goto(await invitationLinkFromEmail(email))
+    await expect(page.getByTestId('invitation-organization')).toHaveText('Northfield Arena')
+    await page.getByRole('button', { name: 'Sign in to accept' }).click()
+    await signIn(page, 'individual@zoikosports.test', DEMO_PASSWORD, 'Individual (Participant / Staff)')
+    await page.getByRole('button', { name: 'Accept invitation' }).click()
+    await expect(page.getByRole('alert')).toContainText('sent to a different email address')
   })
 })
 

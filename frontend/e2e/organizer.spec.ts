@@ -230,16 +230,30 @@ test.describe('dashboard navigation and controls', () => {
     expect(await page.evaluate(() => document.documentElement.dataset.theme)).toBe('dark')
   })
 
-  test('switching workspace signs out and pre-selects the chosen one', async ({ page }) => {
+  test('switching workspace keeps the session and clears the previous workspace', async ({ page }) => {
     await page.goto('/login')
     await signIn(page, 'demo@zoikosports.test')
     await expect(page).toHaveURL(/\/organizer\/overview$/)
 
     await openNavigation(page)
     await page.getByRole('button', { name: 'Switch workspace' }).click()
-    await page.getByRole('menuitemradio', { name: /Venue/ }).click()
-    await expect(page).toHaveURL(/\/login$/)
-    await expect(page.getByRole('radio', { name: 'Venue (Stadium / Arena)' })).toBeChecked()
+    await expect(page.getByRole('menuitemradio', { name: /Organizer · Riverside Invitational/ })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    )
+    await page.getByRole('menuitemradio', { name: /Venue · Northfield Arena/ }).click()
+
+    // Still signed in: straight to the Venue workspace, never the sign-in page.
+    await expect(page).toHaveURL(/\/workspace$/)
+    await expect(page.getByTestId('workspace-organization')).toHaveText('Northfield Arena')
+    // The organizer pages are closed to this workspace now.
+    await page.goto('/organizer/overview')
+    await expect(page).toHaveURL(/\/workspace$/)
+
+    await page.getByRole('button', { name: 'Switch workspace' }).click()
+    await page.getByRole('button', { name: /Organizer · Riverside Invitational/ }).click()
+    await expect(page).toHaveURL(/\/organizer\/overview$/)
+    await expect(page.getByTestId('organizer-overview')).toBeVisible()
   })
 
   test('the navigation drawer opens and closes on small screens', async ({ page }, testInfo) => {

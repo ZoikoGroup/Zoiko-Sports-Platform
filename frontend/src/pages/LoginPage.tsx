@@ -3,7 +3,7 @@ import { useState, type SubmitEvent } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { authApi, type AccountTypeId, type ProviderId } from '../api/auth'
 import { ApiError } from '../api/client'
-import { accountTypeLabel, rememberAccountType, rememberedAccountType } from '../auth/accountTypes'
+import { rememberAccountType, rememberedAccountType } from '../auth/accountTypes'
 import { useAuth } from '../auth/AuthContext'
 import { homePathFor } from '../auth/roles'
 import { AccountTypeSelector } from '../components/AccountTypeSelector'
@@ -25,19 +25,16 @@ export function LoginPage() {
   const [password, setPassword] = useState('')
   const [remember, setRemember] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [availableTypes, setAvailableTypes] = useState<AccountTypeId[]>([])
   const { feedback, setFeedback, fieldError, setFieldErrors, alertRef, reset, showError } = useFormFeedback()
 
   const selectAccountType = (id: AccountTypeId) => {
     setAccountType(id)
     rememberAccountType(id)
-    if (feedback?.code === 'workspace_unavailable') reset()
   }
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     reset()
-    setAvailableTypes([])
 
     const errors: Record<string, string[]> = {}
     if (!EMAIL_PATTERN.test(email.trim())) errors.email = ['Enter a valid email address.']
@@ -50,14 +47,13 @@ export function LoginPage() {
 
     setSubmitting(true)
     try {
+      // The tile is a preference: the server enters the matching workspace, or
+      // offers the account's workspaces to choose from. It never grants one.
       const session = await login({ email: email.trim(), password, account_type: accountType, remember })
-      // A deep link wins; route guards send it on if this role can't open it.
+      // A deep link wins; route guards send it on if this workspace can't open it.
       const from = (location.state as { from?: string } | null)?.from
       navigate(from ?? homePathFor(session), { replace: true })
     } catch (error) {
-      if (error instanceof ApiError && error.code === 'workspace_unavailable') {
-        setAvailableTypes((error.fields.available_account_types as AccountTypeId[] | undefined) ?? [])
-      }
       showError(error)
       if (error instanceof ApiError && error.code === 'invalid_credentials') setPassword('')
     } finally {
@@ -100,15 +96,6 @@ export function LoginPage() {
                 Resend verification email
               </button>
             )}
-            {availableTypes.length > 0 && (
-              <div className="auth-form__actions">
-                {availableTypes.map((id) => (
-                  <Button key={id} type="button" variant="secondary" onClick={() => selectAccountType(id)}>
-                    Use {accountTypeLabel(id)}
-                  </Button>
-                ))}
-              </div>
-            )}
           </Alert>
         )}
 
@@ -145,7 +132,8 @@ export function LoginPage() {
                 <Info size={17} aria-hidden="true" />
               </button>
               <span role="tooltip" id="remember-tip" className="toggletip__bubble">
-                Stay signed in on this device for 14 days. Leave unchecked on shared computers.
+                Stay signed in on this device for {config?.session_remember_days ?? 14} days. Leave unchecked on
+                shared computers.
               </span>
             </span>
           </span>

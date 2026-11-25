@@ -103,18 +103,30 @@ Open **http://localhost:8080/login**. Details in [§5](#5-run-with-docker) and [
 
 ```
 backend/
-  accounts/                 users, organizations, memberships, auth API
+  accounts/                 identity: users, sign-in, the active workspace context
     management/commands/
       seed_demo.py          fictional demo organizations + accounts
-    migrations/
+    migrations/             0003 moved Organization/Membership to organizations/
     emails.py               verification / reset / "already registered" emails
-    models.py               User (email login), Organization, Membership
-    serializers.py          request validation + session payload + response shapes
+    models.py               User (email login, public UUID), AccountType
+    middleware.py           re-checks the account and its workspace context on every request
+    services.py, selectors.py  activate/forget a context; the session payload (public interface)
+    serializers.py          request validation + response shapes
     tokens.py               single-use verification and reset tokens
-    urls.py, views.py       /api/v1/auth/* endpoints (documented with @extend_schema)
+    urls.py, me_urls.py, views.py  /api/v1/auth/* and /api/v1/me/* endpoints
     tests.py                API + seed-command tests
+  organizations/            organizations, memberships, invitations, context resolution
+    models.py               Organization (pending -> active -> suspended), Membership, Invitation
+    selectors.py            eligible_contexts / find_context: who may act for what, right now
+    services.py             create/verify/suspend organizations; invitations; membership status
+    tokens.py, emails.py    invitation tokens (stored hashed) and the invitation email
+    api/                    /api/v1/invitations/preview/ and accept/
+    management/commands/
+      organizations.py      operator commands: list, create, verify, suspend, invite, remove-member
+    tests/                  contexts, sign-in, switching, revocation, invitations, migration
   platform_core/            platform kernel: shared conventions, no business rules (§9)
     request_context.py      per-request correlation ID (X-Request-ID)
+    workspace.py            WorkspaceContext + HasWorkspaceContext permission for module views
     middleware.py           correlation ID; health probes answered before host validation
     errors.py               the JSON error envelope for every API error (DRF and Django level)
     models.py               base records (public UUID, timestamps, version); idempotency table
@@ -150,7 +162,7 @@ backend/
 frontend/
   src/
     api/                    fetch client (CSRF, error envelope) + typed endpoints
-    auth/                   session context, the four account types
+    auth/                   session + workspace context, the four account types, workspace switching
     components/
       AuthLayout.*          page frame: artboard, background plate, brand column, footer
       AccountTypeSelector.* the four workspaces as one segmented bar (native radio group)
@@ -160,8 +172,8 @@ frontend/
       form/                 TextField, PasswordField, Checkbox, Button, Alert
     theme/theme.ts          theme preference, persistence, system sync
     config/siteLinks.ts     footer destinations
-    pages/                  Login, Register, ForgotPassword, ResetPassword,
-                            VerifyEmail, Workspace
+    pages/                  Login, Register, ForgotPassword, ResetPassword, VerifyEmail,
+                            Workspace, ChooseWorkspace, Invitation
     assets/
       brand/                logo artwork extracted from the official images
       backgrounds/          stadium plate (desktop), stage (mobile), ambient fill
@@ -379,6 +391,8 @@ is optional and has a safe default.
 | `DJANGO_SECRET_KEY` | *(generated)* | Leave empty to auto-generate and persist on the volume |
 | `DJANGO_SECURE_COOKIES` | `false` | Set `true` when served over HTTPS |
 | `AUTH_THROTTLE_RATE` | `10/min` | Sign-in / registration / reset attempts per client |
+| `SESSION_REMEMBER_DAYS` | `14` | Lifetime of a "keep me signed in" session (1–90 days) |
+| `INVITATION_TTL_DAYS`, `INVITATION_THROTTLE_RATE` | `7`, `30/min` | How long an emailed invitation link stays valid (1–30 days); invitation preview/accept attempts per client |
 | `ZS_SEED_DEMO` | `false` | Create the fictional demo accounts on start |
 | `ZS_DEMO_PASSWORD` | — | Required when seeding; must pass Django's password rules |
 | `DJANGO_EMAIL_BACKEND` | console | `django.core.mail.backends.smtp.EmailBackend` for real email |
@@ -413,10 +427,13 @@ is optional and has a safe default.
 | `API_PAGE_SIZE` | `25` | Default rows per page on list endpoints |
 | `API_MAX_PAGE_SIZE` | `100` | Largest page a client may request (1–1000) |
 | `IDEMPOTENCY_TTL_HOURS` | `24` | How long a create's stored result is replayed for a retried `Idempotency-Key` (1–720) |
+| `SESSION_REMEMBER_DAYS` | `14` | "Keep me signed in" session lifetime in days (1–90) |
+| `INVITATION_TTL_DAYS` | `7` | Invitation link lifetime in days (1–30) |
+| `INVITATION_THROTTLE_RATE` | `30/min` | Rate limit for invitation preview and accept |
 | `DJANGO_EMAIL_*`, `AUTH_*` | | As in the table above |
 
-`API_PAGE_SIZE`, `API_MAX_PAGE_SIZE` and `IDEMPOTENCY_TTL_HOURS` are also passed
-through by the Docker stack (set them in `backend/.env`).
+`API_PAGE_SIZE`, `API_MAX_PAGE_SIZE`, `IDEMPOTENCY_TTL_HOURS`, `SESSION_REMEMBER_DAYS`,
+`INVITATION_TTL_DAYS` and `INVITATION_THROTTLE_RATE` are also passed through by the Docker stack (set them in `backend/.env`).
 
 ### Frontend (build / dev server)
 
@@ -496,6 +513,7 @@ Every module follows these rules; the kernel implements them once.
 | Lists | Cursor pages: `?page_size=&cursor=` → `{"next", "previous", "results"}`; newest first by default; page size capped at `API_MAX_PAGE_SIZE`; a bad cursor is `400 invalid_cursor` | `pagination.py` |
 | Filters | Declared per list as a serializer; `q` is free-text search; unknown or repeated parameters are `400 validation_error` | `filtering.py` |
 | Time | Instants in RFC 3339 with an offset, stored and returned in UTC (`…Z`); a time without an offset is rejected. Time zones are canonical IANA names (`Europe/London`; not `EST` or `US/Eastern`). Local times that don't exist (clocks forward) or happen twice (clocks back) are rejected unless the caller picks a side | `timeutils.py`, `fields.py` |
+| Workspace context | Every request acts for one verified context (an organization membership or the Individual workspace), re-checked on every request by `accounts.middleware`. Module views that act for an organization use `permission_classes = [IsAuthenticated, HasWorkspaceContext]` and scope queries with `request.workspace_context.organization_id`; without a context the answer is `403 context_required` | `workspace.py` |
 | Modules | New modules start from `python manage.py startapp <name> --template=platform_core/app_template` (layout: `api/`, `services.py`, `selectors.py`, `policies.py`, `events.py`, `models.py`, `tests/`). Modules may use each other only through `services` and `selectors`; `manage.py check` (and so CI) fails on any other cross-module import | `app_template/`, `boundaries.py` |
 
 `platform_core/tests/reference/` is a test-only module (installed only under
@@ -513,20 +531,67 @@ Base path: `/api/v1/auth/`.
 | Method | Endpoint | Purpose |
 | --- | --- | --- |
 | GET | `csrf/` | Sets the CSRF cookie |
-| GET | `config/` | Account types, which federated providers are configured, passkey availability |
-| GET | `session/` | `{"authenticated": false}` or the signed-in user, workspace, organization and memberships |
-| POST | `login/` | `{email, password, account_type, remember}` |
+| GET | `config/` | Account types, configured federated providers, passkey availability, `session_remember_days` |
+| GET | `session/` | `{"authenticated": false}` or the session (below) |
+| POST | `login/` | `{email, password, account_type?, remember}` returns the session plus `preference_matched` |
 | POST | `logout/` | Ends the session |
-| POST | `register/` | `{full_name, email, password}` → always `202` |
-| POST | `verify-email/` | `{uid, token}` — activates the account (single use) |
-| POST | `verify-email/resend/` | `{email}` → always `202` |
-| POST | `password-reset/` | `{email}` → always `202` |
+| POST | `register/` | `{full_name, email, password}`, always `202` |
+| POST | `verify-email/` | `{uid, token}`: activates the account (single use) |
+| POST | `verify-email/resend/` | `{email}`, always `202` |
+| POST | `password-reset/` | `{email}`, always `202` |
 | POST | `password-reset/confirm/` | `{uid, token, new_password}` (single use) |
 | POST | `providers/<google\|microsoft\|apple\|sso>/start/` | Federated sign-in entry point (see §10) |
 
+**The session** (returned by `session/`, `login/`, `/me/`, switching and
+invitation acceptance):
+
+```json
+{
+  "authenticated": true,
+  "user": {"id": "<uuid>", "email": "maya@example.com", "full_name": "Maya"},
+  "context": {"id": "<organization uuid>", "account_type": "organization",
+              "organization": {"id": "<uuid>", "name": "Riverside Invitational", "kind": "organizer"},
+              "role": "competition_director"},
+  "contexts": ["...every workspace the account may act in, same shape..."],
+  "context_status": "active | selection_required | no_access",
+  "context_ended": false
+}
+```
+
+**Signed-in identity and context.** Base path `/api/v1/me/` (sign-in required).
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| GET | `/api/v1/me/` | The session |
+| GET | `contexts/` | `{"active", "contexts"}` |
+| GET | `context/` | The active context, or `403 context_required` |
+| PUT | `context/` | `{"context": "<id>"}`: switch. Re-verified against current memberships (`404 context_not_found` otherwise); the session ID is rotated and context-scoped session state dropped |
+
+**Invitations.** Base path `/api/v1/invitations/` (CSRF-protected, rate-limited
+by `INVITATION_THROTTLE_RATE`). The token travels in the request body, never in
+a URL.
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| POST | `preview/` | `{token}`: organization, workspace, role, masked address, expiry and `state` (`pending`, `expired`, `accepted`); no sign-in needed |
+| POST | `accept/` | `{token}`, signed in as the invited address: joins and enters the workspace. Errors: `invitation_invalid`, `invitation_expired`, `invitation_used` (409), `invitation_email_mismatch` (403), `already_member` (409) |
+
 Data model: `User` (email is the username), `Organization` (`organizer`,
-`venue`, `club`), `Membership` (user ↔ organization with role, status and
-validity window), stored in PostgreSQL 16.
+`venue`, `club`; status `pending`, `active` or `suspended`), `Membership` (user
+and organization with role, status and validity window) and `Invitation`
+(single-use, expiring, token stored as a SHA-256 hash), stored in PostgreSQL 16.
+
+**Operator commands** (until the Internal Administration product exists), run
+from `backend/` (in Docker: `docker compose exec backend python manage.py ...`):
+
+| Command | Effect |
+| --- | --- |
+| `organizations list` | Organizations with their IDs and status |
+| `organizations create --name "..." --kind organizer\|venue\|club [--jurisdiction US-CA] [--verified]` | New organization, **pending** verification unless `--verified` |
+| `organizations verify <id>` / `suspend <id>` / `reinstate <id>` | Verification and suspension; members of a suspended organization lose its workspace on their next request |
+| `organizations invite <id> --email ... --role ... [--expires-days N]` | Emails a single-use invitation (the token is never printed); re-inviting replaces the earlier link |
+| `organizations revoke-invitation <invitation id>` | Revokes a pending invitation |
+| `organizations remove-member <id> --email ... [--suspend]` | Revokes (or suspends) a membership; effective on the member's next request |
 
 **Health probes** — base path `/api/v1/health/`; no authentication, never
 cached, `GET`/`HEAD` only. Bodies name each check and its state; failure
@@ -548,16 +613,54 @@ headers are never logged. Set
 
 ## 10. Authentication workflows
 
-**Workspace sign-in (the four options).** The user picks Organization, Venue,
-Team / Club or Individual, then signs in with email and password. The server
-checks the password and then that the account has an *active* membership (status,
-validity window and organization all active) in an organization of that kind.
-If not, it answers `workspace_unavailable` and lists the workspaces the account
-does have; the page offers them as one-click choices. The last choice is
-remembered on the device.
+**Workspace sign-in (the four options).** Signing in authenticates the person;
+it does not decide what they may act for. The server works out the account's
+*workspace contexts* from verified data only: each active membership (status,
+validity window, and an organization that is verified and not suspended) is one
+context, plus the Individual workspace. Then:
 
-**Keep me signed in.** Checked: the session lasts 14 days. Unchecked: it ends
-when the browser closes.
+- **one** candidate context: entered straight away;
+- **several**: `context_status: selection_required`, and the app shows *Choose a workspace*;
+- **none**: `no_access`, and the app says the account has no workspace yet.
+
+The tile picked on the sign-in page (Organization, Venue, Team / Club,
+Individual) is only a **preference**: it narrows the candidates when it matches
+one of the account's contexts and never grants one. Picking a tile the account
+lacks leads to the chooser with "This account doesn't have a ... workspace".
+The last tile is remembered on the device.
+
+**Switching workspace** (the sidebar menu in the Organizer workspace, *Switch
+workspace* elsewhere) keeps the person signed in. The server re-verifies the
+membership, rotates the session ID and drops everything stored for the previous
+workspace; the app then reloads at the new workspace's home, so no data from the
+previous workspace stays in memory.
+
+**Losing access.** The active context is re-checked on every request. If the
+membership is revoked or suspended, leaves its validity window, or the
+organization is suspended, the very next request is refused (`403
+context_required`) and the app returns to the chooser with "Your access to the
+previous workspace has ended". Deactivating an account ends its sessions for good
+(reactivation does not revive them); changing the password ends the other
+sessions.
+
+**Invitations.** Joining an organization takes an invitation; registration has
+no role field, so nothing chosen at sign-up is a grant. An operator runs
+`organizations invite`; the email links to `/invitations/accept#token=...`. The
+token sits in the URL fragment, which browsers never send to a server, and the
+page removes it from the address bar after reading it. The page shows the
+organization, workspace and role; the person signs in (or registers, verifies,
+and opens the link again) **with the invited address** and accepts. Links are
+single-use, expire after `INVITATION_TTL_DAYS`, and only the newest invitation
+for an address works.
+
+**Keep me signed in.** Checked: the session lasts `SESSION_REMEMBER_DAYS` (14 by
+default). Unchecked: it ends when the browser closes.
+
+**Passwords** are hashed with Argon2id at OWASP's recommended minimum cost
+(19 MiB, 2 passes, 1 lane; `accounts/hashers.py`), a fifth of Django's default
+memory, so concurrent sign-ins cannot exhaust a small container. Accounts created
+before P2 keep their PBKDF2 hash until their next successful sign-in, which
+upgrades it.
 
 **Registration and verification.** New accounts are created inactive and sent a
 single-use verification link. Signing in before verifying returns
