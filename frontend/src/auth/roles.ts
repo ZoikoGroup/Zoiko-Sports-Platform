@@ -29,3 +29,11 @@ export function contextLabel(context: WorkspaceContext): string {
 
 export const humanizeRole = (role: string | null) =>
   role ? role.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase()) : ''
+
+/** The role's name from the server's catalogue ("Venue manager"), else a readable form of its code. */
+export const roleLabel = (context: Pick<WorkspaceContext, 'role' | 'role_name'>) =>
+  context.role_name ?? humanizeRole(context.role)
+
+/** Whether the active workspace's role grants `permission` (show only actions the server will allow). */
+export const hasPermission = (session: Session | null, permission: string) =>
+  Boolean(session?.authenticated && session.permissions.includes(permission))

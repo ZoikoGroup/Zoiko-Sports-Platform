@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import type { SignedInSession } from '../api/auth'
 import { accountTypeLabel } from '../auth/accountTypes'
 import { useAuth } from '../auth/AuthContext'
-import { CHOOSE_WORKSPACE, humanizeRole } from '../auth/roles'
+import { CHOOSE_WORKSPACE, roleLabel } from '../auth/roles'
 import { CardHeader } from '../components/CardHeader'
 import { Alert } from '../components/form/Alert'
 import { Button } from '../components/form/Button'
@@ -55,7 +55,7 @@ export function WorkspacePage() {
             </div>
             <div>
               <dt>Role</dt>
-              <dd>{humanizeRole(context.role)}</dd>
+              <dd>{roleLabel(context)}</dd>
             </div>
           </>
         )}

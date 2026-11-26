@@ -268,7 +268,7 @@ test.describe('invitations', () => {
 
   test('an invitation cannot be accepted by a different account', async ({ page }) => {
     const email = uniqueEmail('intended')
-    manage('organizations', 'invite', organizationId('Northfield Arena'), '--email', email, '--role', 'steward')
+    manage('organizations', 'invite', organizationId('Northfield Arena'), '--email', email, '--role', 'venue_staff')
     await page.goto(await invitationLinkFromEmail(email))
     await expect(page.getByTestId('invitation-organization')).toHaveText('Northfield Arena')
     await page.getByRole('button', { name: 'Sign in to accept' }).click()

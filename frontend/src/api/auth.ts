@@ -13,7 +13,10 @@ export interface WorkspaceContext {
   id: string
   account_type: AccountTypeId
   organization: { id: string; name: string; kind: OrganizationKind } | null
+  /** Role code from the server's catalogue, e.g. venue_manager. */
   role: string | null
+  /** The role's display name, e.g. "Venue manager". */
+  role_name: string | null
 }
 
 /** active: a context is chosen; selection_required: the user picks one; no_access: there is none. */
@@ -29,6 +32,8 @@ export type Session =
       context_status: ContextStatus
       /** The previous context stopped being valid (membership or organization ended). */
       context_ended: boolean
+      /** What the active workspace's role may do (permission codes, e.g. activity.view). */
+      permissions: string[]
     }
 
 export type SignedInSession = Extract<Session, { authenticated: true }>
@@ -57,6 +62,7 @@ export interface InvitationPreview {
   organization: { name: string; kind: OrganizationKind }
   account_type: AccountTypeId
   role: string
+  role_name: string
   /** The invited address, partly masked. */
   email: string
   expires_at: string

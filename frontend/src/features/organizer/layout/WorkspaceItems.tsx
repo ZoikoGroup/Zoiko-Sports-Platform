@@ -1,6 +1,6 @@
 import { Check } from 'lucide-react'
 import { useState } from 'react'
-import { contextLabel, humanizeRole } from '../../../auth/roles'
+import { contextLabel, roleLabel } from '../../../auth/roles'
 import { useSwitchWorkspace } from '../../../auth/useSwitchWorkspace'
 import { useOrganizerIdentity } from './useWorkspaceSwitch'
 
@@ -31,7 +31,7 @@ export function WorkspaceItems({ close }: { close: () => void }) {
           >
             <span className="org-menu__item-text">
               {contextLabel(w)}
-              <span className="org-menu__hint">{current ? 'Current workspace' : humanizeRole(w.role)}</span>
+              <span className="org-menu__hint">{current ? 'Current workspace' : roleLabel(w)}</span>
             </span>
             {current && <Check size={18} aria-hidden="true" />}
           </button>
