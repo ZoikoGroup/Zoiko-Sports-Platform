@@ -8,6 +8,9 @@ BEFORE_P2 = [("accounts", "0001_initial"), ("organizations", None)]
 
 
 class MoveOrganizationsMigrationTests(TransactionTestCase):
+    # Restore the migrated data (the role catalogue) that TransactionTestCase's flush removes.
+    serialized_rollback = True
+
     def setUp(self):
         # Whatever happens, leave the schema at the latest state for the next test's flush.
         self.addCleanup(lambda: self.migrate(self.latest()))
@@ -51,11 +54,15 @@ class MoveOrganizationsMigrationTests(TransactionTestCase):
 
         membership = NewMembership.objects.get(user_id=maya.pk)
         self.assertEqual(
-            (membership.organization_id, membership.role, membership.status),
+            (membership.organization_id, membership.role_id, membership.status),
             (riverside.pk, "competition_director", "active"),
         )
         self.assertIsNotNone(membership.public_id)
         self.assertEqual(NewMembership.objects.count(), 2)
+        # A role the catalogue doesn't list is kept (not offered for new members, grants nothing).
+        legacy = new.get_model("access", "Role").objects.get(code="coach")
+        self.assertEqual((legacy.is_assignable, legacy.permissions.count()), (False, 0))
+        self.assertEqual(NewMembership.objects.get(user_id=raj.pk).role_id, "coach")
 
         tables = connection.introspection.table_names()
         self.assertIn("organizations_organization", tables)

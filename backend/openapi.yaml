@@ -8,6 +8,57 @@ info:
     are based on and get 409 version_conflict when it moved; instants are RFC 3339
     in UTC; time zones are IANA names.'
 paths:
+  /api/v1/activity/:
+    get:
+      operationId: activity_list
+      description: Readable entries about the acting organization, newest first, built
+        from events. Needs an organization workspace whose role grants `activity.view`.
+        Entries about other organizations are never included.
+      summary: The organization's activity feed
+      parameters:
+      - name: cursor
+        required: false
+        in: query
+        description: Opaque position from a previous page's next/previous link.
+        schema:
+          type: string
+      - name: page_size
+        required: false
+        in: query
+        description: Rows per page (default 25, at most 100).
+        schema:
+          type: integer
+      tags:
+      - activity
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedActivityEntryList'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid request (validation_error, invalid_cursor, idempotency_key_required,
+            ...).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Sign-in required (not_authenticated).
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not allowed (permission_denied, csrf_failed, or a module-specific
+            code).
   /api/v1/auth/config/:
     get:
       operationId: auth_config_retrieve
@@ -688,6 +739,28 @@ components:
       required:
       - id
       - label
+    ActivityEntry:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        occurred_at:
+          type: string
+          format: date-time
+          readOnly: true
+        kind:
+          type: string
+          description: Event type the entry was built from, e.g. invitation.accepted.
+        summary:
+          type: string
+          description: One readable line, e.g. 'Casey Club joined Club A as Club coordinator.'
+      required:
+      - id
+      - kind
+      - occurred_at
+      - summary
     AuthConfig:
       type: object
       properties:
@@ -818,6 +891,9 @@ components:
             club.'
         role:
           type: string
+        role_name:
+          type: string
+          description: The role's display name from the catalogue.
         email:
           type: string
           description: The invited address, partly masked.
@@ -832,6 +908,7 @@ components:
       - expires_at
       - organization
       - role
+      - role_name
       - state
     InvitationStateEnum:
       enum:
@@ -904,6 +981,12 @@ components:
           type: boolean
           description: The previous context stopped being valid (membership or organization
             ended).
+        permissions:
+          type: array
+          items:
+            type: string
+          description: Permission codes the active context's role grants (empty without
+            an organization context).
         preference_matched:
           type: boolean
           nullable: true
@@ -925,6 +1008,23 @@ components:
         * `organizer` - Competition organizer
         * `venue` - Venue operator
         * `club` - Team / club
+    PaginatedActivityEntryList:
+      type: object
+      required:
+      - results
+      properties:
+        next:
+          type: string
+          nullable: true
+          format: uri
+        previous:
+          type: string
+          nullable: true
+          format: uri
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityEntry'
     PasswordResetConfirmRequest:
       type: object
       properties:
@@ -1030,6 +1130,12 @@ components:
           type: boolean
           description: The previous context stopped being valid (membership or organization
             ended).
+        permissions:
+          type: array
+          items:
+            type: string
+          description: Permission codes the active context's role grants (empty without
+            an organization context).
       required:
       - authenticated
     SessionUser:
@@ -1117,11 +1223,17 @@ components:
         role:
           type: string
           nullable: true
+          description: Role code from the catalogue, e.g. venue_manager.
+        role_name:
+          type: string
+          nullable: true
+          description: The role's display name, e.g. Venue manager.
       required:
       - account_type
       - id
       - organization
       - role
+      - role_name
   securitySchemes:
     cookieAuth:
       type: apiKey

@@ -47,3 +47,11 @@ Status: ✅ Confirmed · 🟡 Assumed · 📝 Proposed · ♻ Superseded
 | D-036 | [The demo seed stays one command for now](D-036-single-demo-seed.md) | 🟡 Assumed | Stage 0 | 2026-11-26 |
 | D-037 | [Browser tests run in GitHub CI](D-037-browser-tests-in-ci.md) | ✅ Confirmed | Stage 0 | 2026-11-26 |
 | D-038 | [The tracker is enforced on every pull request](D-038-tracker-enforced-on-pull-requests.md) | ✅ Confirmed | Stage 0 | 2026-11-26 |
+| D-039 | [Seed role catalogue and permissions](D-039-seed-role-catalogue.md) | 🟡 Assumed | P3 | 2026-11-26 |
+| D-040 | [The outbox worker is our own PostgreSQL-backed loop](D-040-own-postgresql-worker.md) | ✅ Confirmed | P4 | 2026-11-26 |
+| D-041 | [Event contracts: naming, versioning and the public events module](D-041-event-contracts.md) | ✅ Confirmed | P4 | 2026-11-26 |
+| D-042 | [What the audit trail stores](D-042-audit-contents.md) | 🟡 Assumed | P3 | 2026-11-26 |
+| D-043 | [Django admin is off by default](D-043-admin-off-by-default.md) | 🟡 Assumed | P3 | 2026-11-26 |
+| D-044 | [Who sees the activity feed](D-044-activity-visibility.md) | 🟡 Assumed | P4 | 2026-11-26 |
+| D-045 | [The session tells the app what the active role may do](D-045-permissions-in-session.md) | ✅ Confirmed | P3 | 2026-11-26 |
+| D-046 | [The database enforces data integrity, not only the application](D-046-database-integrity-rules.md) | ✅ Confirmed | P2–P4 (schema corrections) | 2026-11-26 |

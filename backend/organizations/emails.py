@@ -17,17 +17,13 @@ def accept_link(token: str) -> str:
     return f"{settings.FRONTEND_URL}/invitations/accept#token={token}"
 
 
-def _role_label(role: str) -> str:
-    return role.replace("_", " ")
-
-
 def send_invitation(invitation: Invitation, token: str) -> None:
     organization = invitation.organization
     expires_utc = invitation.expires_at.astimezone(UTC)
     expires = f"{expires_utc:%B} {expires_utc.day}, {expires_utc:%Y} at {expires_utc:%H:%M} UTC"
     body = (
         f"Hello,\n\n"
-        f"You've been invited to join {organization.name} on Zoiko Sports as {_role_label(invitation.role)}.\n\n"
+        f"You've been invited to join {organization.name} on Zoiko Sports as {invitation.role.name}.\n\n"
         f"Open the link below, then sign in (or create an account) with this email address to accept:\n\n"
         f"{accept_link(token)}\n\n"
         f"The link can be used once and expires on {expires}.\n"

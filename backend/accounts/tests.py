@@ -7,6 +7,7 @@ from django.core import mail
 from django.core.cache import cache
 from django.core.management import CommandError, call_command
 from django.test import TestCase, override_settings
+from django.utils import timezone
 from rest_framework.test import APIClient
 from rest_framework.throttling import ScopedRateThrottle
 
@@ -25,15 +26,16 @@ class AuthTestCase(TestCase):
     def setUp(self):
         cache.clear()  # throttle counters
         self.client = APIClient(enforce_csrf_checks=True)
-        active = Organization.Status.ACTIVE
-        self.organizer = Organization.objects.create(name="Riverside Invitational", kind="organizer", status=active)
-        self.venue = Organization.objects.create(name="Northfield Arena", kind="venue", status=active)
-        self.club = Organization.objects.create(name="Club A", kind="club", status=active)
+        # Active organizations have been verified (database rule organization_active_is_verified).
+        active = {"status": Organization.Status.ACTIVE, "verified_at": timezone.now()}
+        self.organizer = Organization.objects.create(name="Riverside Invitational", kind="organizer", **active)
+        self.venue = Organization.objects.create(name="Northfield Arena", kind="venue", **active)
+        self.club = Organization.objects.create(name="Club A", kind="club", **active)
 
     def make_user(self, email, *orgs, **extra):
         user = User.objects.create_user(email, PASSWORD, full_name="Test User", **extra)
         for org in orgs:
-            Membership.objects.create(user=user, organization=org, role="coordinator")
+            Membership.objects.create(user=user, organization=org, role_id="organization_access_manager")
         return user
 
     def csrf(self):
@@ -233,7 +235,7 @@ class SeedDemoCommandTests(TestCase):
         )
         # Re-running keeps one verified organization per name.
         self.run_seed(ZS_DEMO_PASSWORD=PASSWORD)
-        self.assertEqual(Organization.objects.filter(status=Organization.Status.ACTIVE).count(), 3)
+        self.assertEqual(Organization.objects.filter(status=Organization.Status.ACTIVE).count(), 5)
 
     @override_settings(DEBUG=True)
     def test_requires_a_password_from_the_environment(self):

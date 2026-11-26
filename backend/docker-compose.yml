@@ -5,6 +5,8 @@
 #             and proxying /api, /admin and /static to the backend.
 #   backend:  Django API (gunicorn) on the internal network only; the generated
 #             secret key and the rate-limit cache live on the backend-data volume.
+#   worker:   delivers outbox events to their consumers (activity feed …); same
+#             image, no published port; healthy while its heartbeat is fresh.
 #   db:       PostgreSQL 16 on the internal network only; data on postgres-data.
 # Settings come from backend/.env (copy .env.example). POSTGRES_PASSWORD is
 # required; every other value has a safe default.
@@ -55,6 +57,8 @@ services:
       DJANGO_NUM_PROXIES: "1"
       DJANGO_CACHE_DIR: /app/data/cache
       FRONTEND_URL: ${ZS_PUBLIC_ORIGIN:-http://localhost:8080}
+      DJANGO_ADMIN_ENABLED: ${DJANGO_ADMIN_ENABLED:-false}  # Zoiko staff tooling; off unless needed
+      DJANGO_ADMIN_PATH: ${DJANGO_ADMIN_PATH:-admin/}
       AUTH_THROTTLE_RATE: ${AUTH_THROTTLE_RATE:-10/min}
       SESSION_REMEMBER_DAYS: ${SESSION_REMEMBER_DAYS:-14}
       INVITATION_TTL_DAYS: ${INVITATION_TTL_DAYS:-7}
@@ -84,6 +88,41 @@ services:
       - backend-data:/app/data
     expose:
       - "8000"
+
+  worker:
+    image: zoiko-sports-backend:latest
+    restart: unless-stopped
+    command: ["python", "manage.py", "outbox", "worker"]
+    depends_on:
+      # Starts after the API container has applied migrations and created the secret key.
+      backend:
+        condition: service_healthy
+    environment:
+      <<: *database
+      DATABASE_HOST: db
+      DATABASE_PORT: "5432"
+      DATABASE_SSLMODE: ${DATABASE_SSLMODE:-}
+      DJANGO_DEBUG: "false"
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-}          # empty = the key the API generated on the volume
+      ZS_RUN_MIGRATIONS: "false"
+      ZS_DB_WAIT_SECONDS: ${ZS_DB_WAIT_SECONDS:-60}
+      OUTBOX_POLL_INTERVAL_MS: ${OUTBOX_POLL_INTERVAL_MS:-500}
+      OUTBOX_BATCH_SIZE: ${OUTBOX_BATCH_SIZE:-100}
+      OUTBOX_MAX_ATTEMPTS: ${OUTBOX_MAX_ATTEMPTS:-8}
+      OUTBOX_RETRY_BASE_SECONDS: ${OUTBOX_RETRY_BASE_SECONDS:-2}
+      OUTBOX_RETRY_MAX_SECONDS: ${OUTBOX_RETRY_MAX_SECONDS:-600}
+      OUTBOX_HEARTBEAT_FILE: /app/data/worker-heartbeat
+      OUTBOX_RETENTION_DAYS: ${OUTBOX_RETENTION_DAYS:-30}
+      # Housekeeping: expired sessions, idempotency records, old delivered events.
+      MAINTENANCE_INTERVAL_HOURS: ${MAINTENANCE_INTERVAL_HOURS:-6}
+    volumes:
+      - backend-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os, sys, time; sys.exit(0 if time.time() - os.path.getmtime('/app/data/worker-heartbeat') < 30 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
   frontend:
     build:

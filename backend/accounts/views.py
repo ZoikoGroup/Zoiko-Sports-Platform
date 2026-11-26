@@ -21,12 +21,14 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from audit.services import record
 from organizations.selectors import eligible_contexts, find_context
+from platform_core.authorization import Public
 from platform_core.errors import ApiError
 from platform_core.openapi import error_responses
 from platform_core.workspace import HasWorkspaceContext, require_workspace_context
@@ -64,7 +66,7 @@ ACCEPTED_RESPONSE = OpenApiResponse(
 
 
 class PublicView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [Public]
 
 
 @method_decorator(csrf_protect, name="dispatch")
@@ -190,6 +192,7 @@ class RegisterView(ThrottledPublicView):
         existing = User.objects.filter(email__iexact=email).first()
         if existing is None:
             user = User.objects.create_user(email, data["password"], full_name=data["full_name"], is_active=False)
+            record("account.registered", actor=user, context=None)
             emails.send_verification(user)
         elif existing.is_active:
             emails.send_existing_account_notice(existing)
@@ -213,6 +216,7 @@ class VerifyEmailView(ThrottledPublicView):
             raise ApiError("invalid_link", "This verification link is invalid or has already been used.")
         user.is_active = True
         user.save(update_fields=["is_active"])
+        record("account.email_verified", actor=user, context=None)
         return Response({"status": "verified"})
 
 
@@ -270,6 +274,7 @@ class PasswordResetConfirmView(ThrottledPublicView):
             ) from exc
         user.set_password(data["new_password"])
         user.save(update_fields=["password"])
+        record("account.password_changed", actor=user, context=None, details={"via": "reset_link"})
         return Response({"status": "password_changed"})
 
 

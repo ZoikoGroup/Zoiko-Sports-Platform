@@ -7,7 +7,8 @@ accounts.middleware re-resolves it against the database on every request.
 import logging
 from typing import Any
 
-from platform_core.workspace import WorkspaceContext
+from audit.services import record
+from platform_core.workspace import WorkspaceContext, set_current_context
 
 logger = logging.getLogger(__name__)
 
@@ -37,12 +38,21 @@ def activate_context(request: Any, context: WorkspaceContext, *, rotate_session:
     _drop_context_scoped_state(session)
     session[CONTEXT_SESSION_KEY] = context.id
     request.workspace_context = context
+    set_current_context(context)
+    record("workspace.context_activated", actor=request.user, context=context)
     logger.info("Workspace context activated user=%s workspace=%s", request.user.public_id, context.account_type)
 
 
 def forget_context(request: Any, *, ended: bool) -> None:
     """Drop the active context; `ended` records that it stopped being valid (shown to the user once chosen again)."""
-    request.session.pop(CONTEXT_SESSION_KEY, None)
+    previous = request.session.pop(CONTEXT_SESSION_KEY, None)
     if ended:
         request.session[CONTEXT_ENDED_SESSION_KEY] = True
+        record(
+            "workspace.context_ended",
+            actor=request.user,
+            context=None,
+            target=("workspace", previous) if previous else None,
+        )
     request.workspace_context = None
+    set_current_context(None)

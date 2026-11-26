@@ -22,7 +22,7 @@ class EligibleContextTests(TestCase):
         return [c.id for c in eligible_contexts(user)]
 
     def test_active_memberships_and_individual_profile_in_tile_order(self):
-        user = make_user("multi@example.com", self.club, self.venue, self.organizer, role="director")
+        user = make_user("multi@example.com", self.club, self.venue, self.organizer, role="competition_director")
         contexts = eligible_contexts(user)
         self.assertEqual([c.account_type for c in contexts], ["organization", "venue", "club", "individual"])
         organizer = contexts[0]
@@ -30,7 +30,7 @@ class EligibleContextTests(TestCase):
         self.assertEqual(
             (organizer.organization_name, organizer.organization_kind), ("Riverside Invitational", "organizer")
         )
-        self.assertEqual(organizer.role, "director")
+        self.assertEqual((organizer.role, organizer.role_name), ("competition_director", "Competition director"))
         self.assertEqual(organizer.organization_id, self.organizer.pk)
         self.assertTrue(contexts[-1].is_individual)
 
@@ -43,7 +43,7 @@ class EligibleContextTests(TestCase):
 
     def test_inactive_memberships_grant_nothing(self):
         user = make_user("m@example.com", self.organizer)
-        for status in (Membership.Status.SUSPENDED, Membership.Status.REVOKED, Membership.Status.INVITED):
+        for status in (Membership.Status.SUSPENDED, Membership.Status.REVOKED):
             with self.subTest(status=status):
                 Membership.objects.filter(user=user).update(status=status)
                 self.assertEqual(self.ids(user), [INDIVIDUAL_CONTEXT_ID])

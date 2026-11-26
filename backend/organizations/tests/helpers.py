@@ -21,10 +21,14 @@ def make_organization(name: str, kind: str, status: str = Organization.Status.AC
     return Organization.objects.create(name=name, kind=kind, status=status, verified_at=verified_at)
 
 
-def make_user(email: str, *organizations: Organization, role: str = "coordinator", **extra):
+# A catalogue role every kind of organization may have (access migration 0002).
+ANY_KIND_ROLE = "organization_access_manager"
+
+
+def make_user(email: str, *organizations: Organization, role: str = ANY_KIND_ROLE, **extra):
     user = get_user_model().objects.create_user(email, PASSWORD, full_name="Test Person", **extra)
     for organization in organizations:
-        Membership.objects.create(user=user, organization=organization, role=role)
+        Membership.objects.create(user=user, organization=organization, role_id=role)
     return user
 
 

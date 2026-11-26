@@ -1,6 +1,8 @@
 """Seed fictional golden-event organizations and sign-in accounts.
 
-All names are synthetic (Riverside Invitational / Northfield Arena / Club A).
+All names are synthetic: the golden event (backend/docs/golden-event.md) with
+Riverside Invitational, Northfield Arena, Clubs A and B, and Club C, which is never
+invited to anything (the permission tests' negative case).
 The shared password comes from ZS_DEMO_PASSWORD and is never printed. Runs only
 with DEBUG on, or when ZS_ALLOW_DEMO_SEED=true is set explicitly (e.g. the local
 Docker demo stack).
@@ -20,6 +22,8 @@ ORGANIZATIONS = {
     "organizer": ("Riverside Invitational", "organizer"),
     "venue": ("Northfield Arena", "venue"),
     "club": ("Club A", "club"),
+    "club_b": ("Club B", "club"),
+    "club_c": ("Club C", "club"),
 }
 
 # email -> (full name, [(organization key, role)])
@@ -31,6 +35,8 @@ USERS = {
     "organizer@zoikosports.test": ("Olivia Organizer", [("organizer", "competition_director")]),
     "venue@zoikosports.test": ("Victor Venue", [("venue", "venue_manager")]),
     "club@zoikosports.test": ("Casey Club", [("club", "club_coordinator")]),
+    "clubb@zoikosports.test": ("Bea Club B", [("club_b", "club_coordinator")]),
+    "clubc@zoikosports.test": ("Cam Club C", [("club_c", "club_coordinator")]),
     "individual@zoikosports.test": ("Indra Individual", []),
 }
 

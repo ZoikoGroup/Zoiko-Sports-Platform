@@ -19,7 +19,7 @@
 | P0.5 | Tooling: ruff, mypy, coverage | ✅ Done | A | P0.1 | PR #2 (1bc221c) |
 | P0.6 | CI pipeline (GitHub Actions: backend and frontend jobs) | ✅ Done | A | P0.5 | PR #2 (1bc221c) |
 | P0.7 | JSON logging; liveness and readiness probes | ✅ Done | A | P0.3 | PR #2 (1bc221c) |
-| P0.8 | Decision log (moved into the repository in Stage 0) | 👀 In review | A | — | Stage 0 (not yet committed) |
+| P0.8 | Decision log (moved into the repository in Stage 0) | ✅ Done | A | — | PR #4 (d18900a) |
 | P0.9 | `main` protected: pull requests with green CI only | ⛔ Blocked | Repo admin | P0.6 | — |
 
 ### P0.1 One Python version
@@ -60,7 +60,6 @@
 - **Code:** `backend/docs/decisions/`, `backend/platform_core/tracker.py`
 - **Tests:** `backend/platform_core/tests/test_tracker.py`
 - Was a Claude Doc (D-012); D-022 moves it into the repository so code and decisions are versioned together.
-- Done when the Stage 0 pull request merges.
 
 ### P0.9 Branch protection
 - Needs a repository admin: protect `main`; require the `backend`, `frontend`, `e2e` and `tracker` checks and one approving review.

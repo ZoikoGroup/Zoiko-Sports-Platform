@@ -35,10 +35,10 @@ INDIVIDUAL_CONTEXT = WorkspaceContext(id=INDIVIDUAL_CONTEXT_ID, account_type=IND
 
 
 def active_memberships(user: Any) -> QuerySet[Membership]:
-    """Memberships that currently grant a workspace (one query with their organization)."""
+    """Memberships that currently grant a workspace (one query with their organization and role)."""
     now = timezone.now()
     return (
-        Membership.objects.select_related("organization")
+        Membership.objects.select_related("organization", "role")
         .filter(
             user=user,
             status=Membership.Status.ACTIVE,
@@ -58,7 +58,8 @@ def _membership_context(membership: Membership) -> WorkspaceContext:
         organization_public_id=organization.public_id,
         organization_name=organization.name,
         organization_kind=organization.kind,
-        role=membership.role,
+        role=membership.role_id,
+        role_name=membership.role.name,
     )
 
 
@@ -94,4 +95,16 @@ def invitation_for_token(token: str) -> Invitation | None:
     """The invitation an emailed token belongs to (looked up by its hash), or None."""
     if not token:
         return None
-    return Invitation.objects.select_related("organization").filter(token_hash=hash_token(token)).first()
+    return Invitation.objects.select_related("organization", "role").filter(token_hash=hash_token(token)).first()
+
+
+def organization_names(public_ids: list[str]) -> dict[str, str]:
+    """Display names by organization public UUID (as strings); unknown IDs are left out."""
+    valid = []
+    for value in public_ids:
+        try:
+            valid.append(UUID(str(value)))
+        except ValueError:
+            continue
+    rows = Organization.objects.filter(public_id__in=valid).values_list("public_id", "name")
+    return {str(public_id): name for public_id, name in rows}

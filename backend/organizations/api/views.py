@@ -1,14 +1,14 @@
 """HTTP endpoints of the organizations module: invitation preview and acceptance.
 
 Issuing invitations is a Zoiko operation for now (`manage.py organizations
-invite`). A self-service endpoint for organization access managers needs the
-permission engine (P3) and the Team & Access module.
+invite`). The self-service endpoint for organization access managers arrives
+with Team & Access (P12.3), on the permission engine built in P3 (D-032).
 """
 
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect
 from drf_spectacular.utils import extend_schema
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -16,6 +16,7 @@ from rest_framework.views import APIView
 
 from accounts.selectors import SessionSerializer, session_payload
 from accounts.services import activate_context
+from platform_core.authorization import Public
 from platform_core.errors import ApiError
 from platform_core.openapi import error_responses
 
@@ -43,7 +44,7 @@ class InvitationPreviewView(InvitationView):
     POST (not GET) keeps the token out of URLs and access logs.
     """
 
-    permission_classes = [AllowAny]
+    permission_classes = [Public]
 
     @extend_schema(
         tags=TAGS,
@@ -64,7 +65,8 @@ class InvitationPreviewView(InvitationView):
             {
                 "organization": {"name": organization.name, "kind": organization.kind},
                 "account_type": selectors.KIND_TO_ACCOUNT_TYPE[Organization.Kind(organization.kind)],
-                "role": invitation.role,
+                "role": invitation.role_id,
+                "role_name": invitation.role.name,
                 "email": mask_email(invitation.email),
                 "expires_at": invitation.expires_at,
                 "state": services.invitation_state(invitation),

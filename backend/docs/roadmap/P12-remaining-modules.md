@@ -33,6 +33,7 @@
 ### P12.3 Participating Organizations and Team & Access
 - Decisions: the role catalogue (GP1), delegation (GP2), bulk import rules.
 - Also delivers the self-service invitation API deferred from P2 (P2.7, D-032).
+- The first API that edits organizations and memberships: give those tables a `version` column (VersionedModel, 409 on stale edits), as the schema audit noted (D-046).
 
 ### P12.4 Reports and audit exports
 - Decisions: export formats, retention (D09); export jobs run in the worker (P4).

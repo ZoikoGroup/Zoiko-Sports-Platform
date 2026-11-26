@@ -2,22 +2,22 @@
 
 | Phase | Status | Owner | Needs | Decisions | Unlocks |
 |---|---|---|---|---|---|
-| P2 | 👀 In review | A | P1 | D-024 to D-032 | Workspace chooser, switching without sign-out, invitations |
+| P2 | ✅ Done | A | P1 | D-024 to D-032 | Workspace chooser, switching without sign-out, invitations |
 
 **Objective:** the server decides which organization a person is acting for, re-checks it on every request, and lets people join organizations by invitation.
 
-**Layer:** L2. Built on branch `vivekkumar` (`9b8838b` backend, `b44873b` frontend), GitHub CI green. **Not yet merged to `main`**: the phase becomes ✅ when its pull request merges.
+**Layer:** L2. Built as `9b8838b` (backend) and `b44873b` (frontend); merged to `main` in PR #4 (`2e11f4c`).
 
 ## Work packages
 
 | ID | Work package | Status | Owner | Depends on | PR / commit |
 |---|---|---|---|---|---|
-| P2.1 | `organizations` module separated from `accounts`; verification status | ✅ Done | A | P1 | 9b8838b |
-| P2.2 | Context resolver at sign-in (1 → enter, several → choose, none → no access) | ✅ Done | A | P2.1 | 9b8838b |
-| P2.3 | Context endpoints and switching without sign-out | ✅ Done | A | P2.2 | 9b8838b, b44873b |
-| P2.4 | Access re-checked on every request | ✅ Done | A | P2.2 | 9b8838b |
-| P2.5 | Invitations: single-use, expiring, stored hashed | ✅ Done | A | P2.1 | 9b8838b, b44873b |
-| P2.6 | Credential hardening: Argon2id, configurable session length | ✅ Done | A | P1 | 9b8838b |
+| P2.1 | `organizations` module separated from `accounts`; verification status | ✅ Done | A | P1 | PR #4 (9b8838b) |
+| P2.2 | Context resolver at sign-in (1 → enter, several → choose, none → no access) | ✅ Done | A | P2.1 | PR #4 (9b8838b) |
+| P2.3 | Context endpoints and switching without sign-out | ✅ Done | A | P2.2 | PR #4 (9b8838b, b44873b) |
+| P2.4 | Access re-checked on every request | ✅ Done | A | P2.2 | PR #4 (9b8838b) |
+| P2.5 | Invitations: single-use, expiring, stored hashed | ✅ Done | A | P2.1 | PR #4 (9b8838b, b44873b) |
+| P2.6 | Credential hardening: Argon2id, configurable session length | ✅ Done | A | P1 | PR #4 (9b8838b) |
 | P2.7 | Self-service invitation API (organization admins invite) | ⏸ Deferred | A | P3 | → P12.3 |
 
 ### P2.1 Organizations module
@@ -60,8 +60,8 @@
 - [x] A removed member's next request is denied.
 - [x] Invitation tokens are single-use, expire, and only their SHA-256 hash is stored.
 - [x] Existing passwords upgrade to Argon2id on next sign-in.
-- [ ] Sign-in, switching and invitation events are audited (needs P3.7).
-- [ ] Merged to `main`.
+- [x] Sign-in, switching and invitation events are audited (delivered by P3.7).
+- [x] Merged to `main` (PR #4).
 
 ## Acceptance evidence
 
@@ -73,5 +73,6 @@
 
 ## Progress log
 
-- 2026-11-25 · P2.1–P2.6 · 9b8838b, b44873b · identity and organization context; pushed to `vivekkumar`. Next: pull request to `main`.
+- 2026-11-25 · P2.1–P2.6 · 9b8838b, b44873b · identity and organization context; pushed to `vivekkumar`. Merged in PR #4.
 - 2026-11-26 · P2.5 · Stage 0 · fixed a first-visit CSRF race: an invitation link opened in a fresh browser could be refused ("session expired") because two responses set different CSRF cookies. `frontend/src/api/client.ts` now shares one token bootstrap and retries once on `csrf_failed`. Found by the browser suite.
+- 2026-11-26 · P2.1 · vivekkumar (PR to open) · schema corrections (D-046): database CHECK constraints for values and states, redundant indexes removed, housekeeping scheduled.

@@ -1,3 +1,9 @@
-"""Events published by the {{ app_name }} module, each carrying the request's
-correlation ID (platform_core.request_context.get_request_id).
+"""Events published by the {{ app_name }} module: its contract with consumers (platform_core.events).
+
+    THING_CREATED = EventType("thing.created", 1, fields=("thing_id", "organization_id"),
+                              description="A thing was created.")
+
+Publish with outbox.services.publish() inside the change's transaction. Payloads
+carry IDs and codes, never personal data. After adding or changing a type, run
+`python manage.py event_catalogue --write`.
 """

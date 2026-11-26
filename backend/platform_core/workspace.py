@@ -20,6 +20,7 @@ Module views that act for an organization require it explicitly:
     Competition.objects.filter(organization_id=context.organization_id)
 """
 
+from contextvars import ContextVar
 from dataclasses import dataclass
 from typing import Any
 from uuid import UUID
@@ -46,11 +47,27 @@ class WorkspaceContext:
     organization_name: str = ""
     # organizer, venue or club; empty for the Individual workspace.
     organization_kind: str = ""
+    # Role code (access.Role) and its display name; empty for the Individual workspace.
     role: str = ""
+    role_name: str = ""
 
     @property
     def is_individual(self) -> bool:
         return self.organization_id is None
+
+
+# The context of the request being handled, for code that has no request object
+# (services writing audit entries). Set by the identity layer on every request.
+_current: ContextVar[WorkspaceContext | None] = ContextVar("workspace_context", default=None)
+
+
+def set_current_context(context: WorkspaceContext | None) -> None:
+    _current.set(context)
+
+
+def current_context() -> WorkspaceContext | None:
+    """The workspace context of the request being handled (None outside a request or without one)."""
+    return _current.get()
 
 
 def get_workspace_context(request: Any) -> WorkspaceContext | None:

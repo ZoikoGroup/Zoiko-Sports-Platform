@@ -21,6 +21,7 @@ piece lives.
 | `openapi.py` | Shared OpenAPI pieces (error responses, `Idempotency-Key` header) |
 | `boundaries.py`, `checks.py` | The module boundary rule as a `manage.py check` system check |
 | `tracker.py` | Parses and validates the tracker in `backend/docs` |
+| `maintenance.py` | Housekeeping registry: modules register clean-up tasks; the worker runs them on a schedule |
 | `health.py`, `urls.py` | `/api/v1/health/live/`, `/api/v1/health/ready/` |
 | `app_template/` | Template for new modules (`startapp --template=platform_core/app_template`) |
 
@@ -30,6 +31,7 @@ piece lives.
 |---|---|
 | `wait_for_db` | Waits for PostgreSQL before migrations (Docker entrypoint, CI) |
 | `purge_idempotency_records` | Deletes expired idempotency records |
+| `maintenance` (`--list`) | Runs the housekeeping now: expired sessions, idempotency records, old delivered events |
 | `check_tracker` (`--write`) | Validates `backend/docs`; `--write` regenerates `ROADMAP.md` and the decision index |
 
 ## Tests

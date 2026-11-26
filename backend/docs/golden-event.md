@@ -10,8 +10,8 @@ tests against. All names are synthetic.
 | Riverside Invitational | Organizer | ✅ | Runs the competition |
 | Northfield Arena | Venue | ✅ | Hosts it; shares readiness checks |
 | Club A | Club | ✅ | Invited participant |
-| Club B | Club | ❌ added in P3.8 | Invited participant |
-| Club C | Club | ❌ added in P3.8 | **Not invited**: must see nothing, ever |
+| Club B | Club | ✅ (P3.8) | Invited participant |
+| Club C | Club | ✅ (P3.8) | **Not invited**: must see nothing, ever |
 
 The demo seed (`backend/accounts/management/commands/seed_demo.py`, password from
 `ZS_DEMO_PASSWORD`, never printed) creates these accounts:
@@ -22,6 +22,8 @@ The demo seed (`backend/accounts/management/commands/seed_demo.py`, password fro
 | `organizer@zoikosports.test` | Riverside (competition_director) |
 | `venue@zoikosports.test` | Northfield (venue_manager) |
 | `club@zoikosports.test` | Club A (club_coordinator) |
+| `clubb@zoikosports.test` | Club B (club_coordinator) |
+| `clubc@zoikosports.test` | Club C (club_coordinator), never invited to anything |
 | `individual@zoikosports.test` | Individual only |
 
 ## The story each phase adds to
@@ -29,7 +31,7 @@ The demo seed (`backend/accounts/management/commands/seed_demo.py`, password fro
 | Phase | What the scenario checks |
 |---|---|
 | P2 ✅ | The multi-workspace account chooses; switching works without sign-out; a removed member is locked out on the next request |
-| P3 | Every role × every endpoint, including denials; Club C gets nothing |
+| P3 ✅ | Every role × every endpoint, including denials; Club C gets nothing (`access/tests/test_permission_matrix.py`) |
 | P5 | Riverside creates a competition and invites Northfield and Clubs A and B; Club C gets 404 on every path |
 | P6 | A kick-off moves from 12:15 to 12:25: proposed, approved, published as version 2; version 1 stays readable |
 | P7 | Clubs A and B are notified; delivered is not acknowledged; a club revoked after queueing gets nothing |

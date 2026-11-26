@@ -26,6 +26,7 @@ Each fact has exactly one home; everything else links to it.
 | Requirements, dependencies, order, acceptance criteria | The phase file |
 | How a finished module works and where its code is | `backend/<module>/README.md` |
 | Exact API request and response shapes | [`backend/openapi.yaml`](../openapi.yaml) (generated; CI enforces it) |
+| Event contracts between modules | [contracts/events.md](contracts/events.md) (generated; CI enforces it) |
 | Which Organizer pages show live data | `frontend/src/features/organizer/api/endpoints.ts` (the on/off switch) |
 | Decisions and assumptions | [decisions/](decisions) |
 | The shared test scenario | [golden-event.md](golden-event.md) |
