@@ -1,4 +1,10 @@
-"""Authentication endpoints for the four sign-in workspaces.
+"""Authentication and workspace-context endpoints.
+
+Sign-in authenticates the person; it does not choose what they may act for.
+The server resolves the account's workspace contexts from verified memberships
+(organizations.selectors): one context is entered straight away, several are
+offered for choosing, none leads to a no-access state. The sign-in tile is a
+preference among those contexts and never a grant.
 
 Every response that could reveal whether an email address is registered is
 identical for known and unknown addresses (registration, password reset and
@@ -15,33 +21,41 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from organizations.selectors import eligible_contexts, find_context
 from platform_core.errors import ApiError
 from platform_core.openapi import error_responses
+from platform_core.workspace import HasWorkspaceContext, require_workspace_context
 
 from . import emails
-from .models import AccountType, Organization, User
+from .models import AccountType, User
+from .selectors import context_data, session_payload
 from .serializers import (
     AuthConfigSerializer,
+    ContextListSerializer,
+    ContextSwitchSerializer,
     EmailSerializer,
+    LoginResponseSerializer,
     LoginSerializer,
     PasswordResetConfirmSerializer,
     RegisterSerializer,
     SessionSerializer,
     StatusSerializer,
     TokenSerializer,
-    session_payload,
+    WorkspaceContextSerializer,
 )
+from .services import activate_context
 from .tokens import email_verification_token, password_reset_token, user_from_uid
 
 logger = logging.getLogger(__name__)
 
 ACCEPTED = {"status": "accepted"}
 TAGS = ["auth"]
+ME_TAGS = ["me"]
 # Anonymous, CSRF-protected and rate-limited endpoints share these error responses.
 PUBLIC_WRITE_ERRORS = error_responses(400, 403, 429)
 ACCEPTED_RESPONSE = OpenApiResponse(
@@ -81,6 +95,7 @@ class AuthConfigView(PublicView):
                     for key, provider in settings.AUTH_PROVIDERS.items()
                 ],
                 "passkeys_enabled": settings.AUTH_PASSKEYS_ENABLED,
+                "session_remember_days": settings.SESSION_COOKIE_AGE // 86400,
             }
         )
 
@@ -91,15 +106,21 @@ class SessionView(PublicView):
     def get(self, request):
         if not request.user.is_authenticated:
             return Response({"authenticated": False})
-        return Response({"authenticated": True, **session_payload(request)})
+        return Response(session_payload(request))
 
 
 class LoginView(ThrottledPublicView):
     @extend_schema(
         tags=TAGS,
-        summary="Sign in to a workspace",
+        summary="Sign in",
+        description=(
+            "Authenticates, then resolves the account's workspace contexts: exactly one candidate is entered; "
+            "several leave `context` null with `context_status` selection_required (choose one with "
+            "PUT /me/context/); none gives no_access. `account_type` narrows the candidates when it matches "
+            "and never grants access."
+        ),
         request=LoginSerializer,
-        responses={200: SessionSerializer, **PUBLIC_WRITE_ERRORS},
+        responses={200: LoginResponseSerializer, **PUBLIC_WRITE_ERRORS},
     )
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
@@ -119,35 +140,28 @@ class LoginView(ThrottledPublicView):
             logger.info("Sign-in failed (invalid credentials)")
             raise ApiError("invalid_credentials", "Incorrect email or password.", status.HTTP_400_BAD_REQUEST)
 
-        account_type = data["account_type"]
-        available = user.available_account_types()
-        if account_type not in available:
-            label = AccountType(account_type).label
-            raise ApiError(
-                "workspace_unavailable",
-                f"This account doesn't have access to a {label} workspace. Choose another account type.",
-                status.HTTP_403_FORBIDDEN,
-                fields={"available_account_types": available},
-            )
-
-        organization_id = None
-        if account_type != AccountType.INDIVIDUAL:
-            membership = (
-                user.active_memberships()
-                .filter(organization__kind=Organization.ACCOUNT_TYPE_TO_KIND[account_type])
-                .order_by("created_at", "pk")
-                .first()
-            )
-            organization_id = membership.organization_id
-
         login(request, user)
-        request.session["account_type"] = account_type
-        request.session["organization_id"] = organization_id
         # "Keep me signed in" keeps the session for SESSION_COOKIE_AGE; otherwise
         # it ends when the browser closes.
         request.session.set_expiry(settings.SESSION_COOKIE_AGE if data["remember"] else 0)
-        logger.info("Sign-in succeeded user=%s workspace=%s", user.pk, account_type)
-        return Response({"authenticated": True, **session_payload(request)})
+
+        contexts = eligible_contexts(user)
+        preference = data.get("account_type")
+        preferred = [c for c in contexts if c.account_type == preference] if preference else []
+        candidates = preferred or contexts
+        if len(candidates) == 1:
+            # login() has just rotated the session ID.
+            activate_context(request, candidates[0], rotate_session=False)
+        active = request.workspace_context
+        logger.info(
+            "Sign-in succeeded user=%s workspace=%s contexts=%d",
+            user.public_id,
+            active.account_type if active else "none",
+            len(contexts),
+        )
+        payload = session_payload(request)
+        payload["preference_matched"] = bool(preferred) if preference else None
+        return Response(payload)
 
 
 @method_decorator(csrf_protect, name="dispatch")
@@ -284,3 +298,72 @@ class ProviderStartView(ThrottledPublicView):
             f"Sign-in with {config['name']} is configured but not yet connected.",
             status.HTTP_501_NOT_IMPLEMENTED,
         )
+
+
+# --- The signed-in identity and its workspace context (/api/v1/me/) -------------
+
+
+class MeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=ME_TAGS,
+        summary="The signed-in user and workspace contexts",
+        responses={200: SessionSerializer, **error_responses(401)},
+    )
+    def get(self, request):
+        return Response(session_payload(request))
+
+
+class ContextListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        tags=ME_TAGS,
+        summary="Workspace contexts the user may act in",
+        responses={200: ContextListSerializer, **error_responses(401)},
+    )
+    def get(self, request):
+        active = request.workspace_context
+        contexts = [context_data(c) for c in eligible_contexts(request.user)]
+        return Response({"active": active.id if active else None, "contexts": contexts})
+
+
+class ContextView(APIView):
+    """The active workspace context: read it (requires one) or switch it."""
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [IsAuthenticated(), HasWorkspaceContext()]
+        return [IsAuthenticated()]
+
+    @extend_schema(
+        tags=ME_TAGS,
+        summary="The active workspace context",
+        responses={200: WorkspaceContextSerializer, **error_responses(401, 403)},
+    )
+    def get(self, request):
+        return Response(context_data(require_workspace_context(request)))
+
+    @extend_schema(
+        tags=ME_TAGS,
+        summary="Switch workspace context",
+        description=(
+            "Verifies the context against current memberships, rotates the session ID and drops every "
+            "session value scoped to the previous context. 404 when the context is unknown or not the user's."
+        ),
+        request=ContextSwitchSerializer,
+        responses={200: SessionSerializer, **error_responses(400, 401, 403, 404)},
+    )
+    def put(self, request):
+        serializer = ContextSwitchSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        context = find_context(request.user, serializer.validated_data["context"])
+        if context is None:
+            raise ApiError(
+                "context_not_found",
+                "That workspace isn't available to your account.",
+                status.HTTP_404_NOT_FOUND,
+            )
+        activate_context(request, context)
+        return Response(session_payload(request))

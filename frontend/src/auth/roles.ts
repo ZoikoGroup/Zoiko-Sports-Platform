@@ -1,23 +1,31 @@
-import type { Session, SignedInSession } from '../api/auth'
+import type { Session, SignedInSession, WorkspaceContext } from '../api/auth'
+import { accountTypeLabel } from './accountTypes'
 
 /** Landing page of the Organizer Workspace. */
 export const ORGANIZER_HOME = '/organizer/overview'
-
-/** The organization membership the session is scoped to, if any. */
-export const activeMembership = (session: SignedInSession) =>
-  session.memberships.find((m) => m.organization_id === session.active_organization_id)
+/** Where a signed-in person without an active workspace picks one (or learns they have none). */
+export const CHOOSE_WORKSPACE = '/choose-workspace'
 
 /**
- * Signed in to the Organization workspace through an organizer membership.
- * The server grants that workspace only with such a membership; checking both
- * keeps the client from showing organizer screens on an unexpected session.
- * (UI routing only — data endpoints must enforce access on the server.)
+ * Acting for an organizer organization. The server resolves the context from a
+ * verified membership; this check only keeps the client from showing organizer
+ * screens on another context. (UI routing only: data endpoints enforce access.)
  */
 export const isOrganizer = (session: SignedInSession) =>
-  session.account_type === 'organization' && activeMembership(session)?.organization_kind === 'organizer'
+  session.context?.account_type === 'organization' && session.context.organization?.kind === 'organizer'
 
 /** Where a signed-in user lands: organizers get their dashboard, others the workspace page. */
 export function homePathFor(session: Session): string {
   if (!session.authenticated) return '/login'
+  if (!session.context) return CHOOSE_WORKSPACE
   return isOrganizer(session) ? ORGANIZER_HOME : '/workspace'
 }
+
+/** "Organizer · Riverside Invitational", "Individual". */
+export function contextLabel(context: WorkspaceContext): string {
+  const workspace = context.account_type === 'organization' ? 'Organizer' : accountTypeLabel(context.account_type)
+  return context.organization ? `${workspace} · ${context.organization.name}` : workspace
+}
+
+export const humanizeRole = (role: string | null) =>
+  role ? role.replace(/_/g, ' ').replace(/^\w/, (c) => c.toUpperCase()) : ''

@@ -35,10 +35,18 @@ function readCookie(name: string): string | null {
   return match ? decodeURIComponent(match.split('=')[1]) : null
 }
 
+// One shared bootstrap: parallel first requests must not each fetch a token.
+let csrfBootstrap: Promise<void> | null = null
+
 async function ensureCsrfToken(): Promise<string> {
   const existing = readCookie('csrftoken')
   if (existing) return existing
-  await request('GET', '/api/v1/auth/csrf/')
+  csrfBootstrap ??= request('GET', '/api/v1/auth/csrf/')
+    .then(() => undefined)
+    .finally(() => {
+      csrfBootstrap = null
+    })
+  await csrfBootstrap
   return readCookie('csrftoken') ?? ''
 }
 
@@ -52,6 +60,21 @@ export interface RequestOptions {
 }
 
 export async function request<T>(method: HttpMethod, path: string, body?: unknown, options: RequestOptions = {}): Promise<T> {
+  try {
+    return await send<T>(method, path, body, options)
+  } catch (error) {
+    // On a first visit, two responses arriving together (e.g. the session check and
+    // a CSRF bootstrap) can each set a different csrftoken cookie, so a request sent
+    // in between carries a stale token. The server rejects it before doing anything,
+    // so one retry with the cookie as it is now is safe.
+    if (method !== 'GET' && error instanceof ApiError && error.code === 'csrf_failed') {
+      return send<T>(method, path, body, options)
+    }
+    throw error
+  }
+}
+
+async function send<T>(method: HttpMethod, path: string, body: unknown, options: RequestOptions): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json', ...options.headers }
   if (method !== 'GET') {
     headers['Content-Type'] = 'application/json'

@@ -1,0 +1,28 @@
+# Who must review which paths (GitHub requests these reviewers automatically once
+# branch protection requires code-owner review; see backend/docs/handover.md).
+#
+# Not active yet: the two developers' GitHub usernames are not decided (D-034).
+# When they are, replace DEV_A / DEV_B below with real usernames (with a leading @)
+# and remove the leading "# " from the rule lines. A rule naming an unknown user is an
+# error on GitHub, so do not enable these lines with placeholders.
+#
+# Shared foundations: both developers review.
+# /backend/platform_core/                       DEV_A DEV_B
+# /backend/config/                              DEV_A DEV_B
+# /backend/accounts/                            DEV_A DEV_B
+# /backend/openapi.yaml                         DEV_A DEV_B
+# /backend/requirements*                        DEV_A DEV_B
+# /backend/docs/                                DEV_A DEV_B
+# /frontend/src/api/                            DEV_A DEV_B
+# /frontend/src/auth/                           DEV_A DEV_B
+# /frontend/src/features/organizer/api/         DEV_A DEV_B
+#
+# Domain track (A): organizations, permissions, competitions, fixtures.
+# /backend/organizations/                       DEV_A
+#
+# Platform track (B): CI, containers, browser-test harness.
+# /.github/                                     DEV_B
+# /backend/scripts/                             DEV_B
+# /backend/docker-compose*.yml                  DEV_B
+# /backend/Dockerfile                           DEV_B
+# /frontend/e2e/                                DEV_B

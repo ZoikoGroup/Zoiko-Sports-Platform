@@ -2,13 +2,21 @@ from django.contrib.auth import password_validation
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
-from .models import AccountType, Membership, User
+from .models import AccountType, User
 
 
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(trim_whitespace=False)
-    account_type = serializers.ChoiceField(choices=AccountType.choices)
+    account_type = serializers.ChoiceField(
+        choices=AccountType.choices,
+        required=False,
+        allow_null=True,
+        help_text=(
+            "Preferred workspace (the sign-in tile). A preference only: it selects among the contexts the "
+            "account's memberships grant and never grants one."
+        ),
+    )
     remember = serializers.BooleanField(default=False)
 
 
@@ -39,16 +47,6 @@ class RegisterSerializer(serializers.Serializer):
         return attrs
 
 
-class MembershipSerializer(serializers.ModelSerializer):
-    organization_id = serializers.IntegerField(source="organization.id")
-    organization_name = serializers.CharField(source="organization.name")
-    organization_kind = serializers.CharField(source="organization.kind")
-
-    class Meta:
-        model = Membership
-        fields = ["organization_id", "organization_name", "organization_kind", "role"]
-
-
 # --- Response shapes (OpenAPI documentation of what the views return) ---------
 
 
@@ -72,12 +70,33 @@ class AuthConfigSerializer(serializers.Serializer):
     account_types = AccountTypeOptionSerializer(many=True)
     providers = ProviderOptionSerializer(many=True)
     passkeys_enabled = serializers.BooleanField()
+    session_remember_days = serializers.IntegerField(help_text="Lifetime in days of a 'keep me signed in' session.")
 
 
 class SessionUserSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
+    id = serializers.UUIDField()
     email = serializers.EmailField()
     full_name = serializers.CharField()
+
+
+class ContextOrganizationSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    kind = serializers.CharField(help_text="organizer, venue or club.")
+
+
+class WorkspaceContextSerializer(serializers.Serializer):
+    id = serializers.CharField(help_text="`individual`, or the organization's ID.")
+    account_type = serializers.ChoiceField(choices=AccountType.choices)
+    organization = ContextOrganizationSerializer(allow_null=True)
+    role = serializers.CharField(allow_null=True)
+
+
+CONTEXT_STATUSES = [
+    ("active", "A context is active."),
+    ("selection_required", "Several contexts (or none active): the user chooses one."),
+    ("no_access", "The account has no context it may act in."),
+]
 
 
 class SessionSerializer(serializers.Serializer):
@@ -85,25 +104,26 @@ class SessionSerializer(serializers.Serializer):
 
     authenticated = serializers.BooleanField()
     user = SessionUserSerializer(required=False)
-    account_type = serializers.ChoiceField(choices=AccountType.choices, required=False, allow_null=True)
-    active_organization_id = serializers.IntegerField(required=False, allow_null=True)
-    available_account_types = serializers.ListField(
-        child=serializers.ChoiceField(choices=AccountType.choices), required=False
+    # DRF's metaclass moves declared fields off the class, so this does not shadow Serializer.context.
+    context = WorkspaceContextSerializer(required=False, allow_null=True)  # type: ignore[assignment]
+    contexts = WorkspaceContextSerializer(many=True, required=False)
+    context_status = serializers.ChoiceField(choices=CONTEXT_STATUSES, required=False)
+    context_ended = serializers.BooleanField(
+        required=False, help_text="The previous context stopped being valid (membership or organization ended)."
     )
-    memberships = MembershipSerializer(many=True, required=False)
 
 
-def session_payload(request) -> dict:
-    user = request.user
-    active_org_id = request.session.get("organization_id")
-    return {
-        "user": {
-            "id": user.pk,
-            "email": user.email,
-            "full_name": user.full_name,
-        },
-        "account_type": request.session.get("account_type"),
-        "active_organization_id": active_org_id,
-        "available_account_types": user.available_account_types(),
-        "memberships": MembershipSerializer(user.active_memberships(), many=True).data,
-    }
+class LoginResponseSerializer(SessionSerializer):
+    preference_matched = serializers.BooleanField(
+        allow_null=True, help_text="Whether the preferred workspace matched a context; null without a preference."
+    )
+
+
+class ContextSwitchSerializer(serializers.Serializer):
+    # As above: a declared field, not a replacement of Serializer.context.
+    context = serializers.CharField(max_length=64, help_text="ID of one of the user's contexts.")  # type: ignore[assignment]
+
+
+class ContextListSerializer(serializers.Serializer):
+    active = serializers.CharField(allow_null=True)
+    contexts = WorkspaceContextSerializer(many=True)

@@ -27,7 +27,7 @@ from .request_context import get_request_id
 API_PATH_PREFIX = "/api/"
 
 # Codes the platform itself returns. Modules add their own domain codes (for
-# example "workspace_unavailable"); a code, once published, keeps its meaning.
+# example "invitation_expired"); a code, once published, keeps its meaning.
 ERROR_CODES: dict[str, str] = {
     "validation_error": "Input failed validation; see `fields`.",
     "bad_request": "The request could not be processed.",
@@ -47,6 +47,7 @@ ERROR_CODES: dict[str, str] = {
     "request_in_progress": "A request with this Idempotency-Key is still being processed.",
     "invalid_cursor": "The pagination cursor is malformed or out of date.",
     "invalid_time_zone": "The time zone is not a supported IANA name.",
+    "context_required": "The request needs an active workspace context; choose one (PUT /me/context/).",
     "server_error": "An unexpected server error; the request ID identifies it in the logs.",
 }
 

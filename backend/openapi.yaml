@@ -45,7 +45,11 @@ paths:
   /api/v1/auth/login/:
     post:
       operationId: auth_login_create
-      summary: Sign in to a workspace
+      description: 'Authenticates, then resolves the account''s workspace contexts:
+        exactly one candidate is entered; several leave `context` null with `context_status`
+        selection_required (choose one with PUT /me/context/); none gives no_access.
+        `account_type` narrows the candidates when it matches and never grants access.'
+      summary: Sign in
       tags:
       - auth
       requestBody:
@@ -68,7 +72,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Session'
+                $ref: '#/components/schemas/LoginResponse'
           description: ''
         '400':
           content:
@@ -418,6 +422,248 @@ paths:
               schema:
                 $ref: '#/components/schemas/RateLimited'
           description: Too many requests (rate_limited with retry_after).
+  /api/v1/invitations/accept/:
+    post:
+      operationId: invitations_accept_create
+      description: 'Creates (or reactivates) the membership, marks the invitation
+        used and makes the organization''s workspace the active context. Errors: invitation_invalid,
+        invitation_expired, invitation_used (409), invitation_email_mismatch (403),
+        already_member (409).'
+      summary: Accept an invitation
+      tags:
+      - invitations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationTokenRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InvitationTokenRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InvitationTokenRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid request (validation_error, invalid_cursor, idempotency_key_required,
+            ...).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Sign-in required (not_authenticated).
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not allowed (permission_denied, csrf_failed, or a module-specific
+            code).
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionConflict'
+          description: Conflict (version_conflict with current_version, or request_in_progress).
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimited'
+          description: Too many requests (rate_limited with retry_after).
+  /api/v1/invitations/preview/:
+    post:
+      operationId: invitations_preview_create
+      description: |-
+        What an emailed invitation offers, so the person can decide before signing in.
+
+        POST (not GET) keeps the token out of URLs and access logs.
+      summary: Preview an invitation
+      tags:
+      - invitations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvitationTokenRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/InvitationTokenRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/InvitationTokenRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvitationPreview'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid request (validation_error, invalid_cursor, idempotency_key_required,
+            ...).
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not allowed (permission_denied, csrf_failed, or a module-specific
+            code).
+        '429':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimited'
+          description: Too many requests (rate_limited with retry_after).
+  /api/v1/me/:
+    get:
+      operationId: me_retrieve
+      summary: The signed-in user and workspace contexts
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Sign-in required (not_authenticated).
+  /api/v1/me/context/:
+    get:
+      operationId: me_context_retrieve
+      description: 'The active workspace context: read it (requires one) or switch
+        it.'
+      summary: The active workspace context
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceContext'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Sign-in required (not_authenticated).
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not allowed (permission_denied, csrf_failed, or a module-specific
+            code).
+    put:
+      operationId: me_context_update
+      description: Verifies the context against current memberships, rotates the session
+        ID and drops every session value scoped to the previous context. 404 when
+        the context is unknown or not the user's.
+      summary: Switch workspace context
+      tags:
+      - me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContextSwitchRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ContextSwitchRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ContextSwitchRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid request (validation_error, invalid_cursor, idempotency_key_required,
+            ...).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Sign-in required (not_authenticated).
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not allowed (permission_denied, csrf_failed, or a module-specific
+            code).
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not found, or not visible to the caller (not_found).
+  /api/v1/me/contexts/:
+    get:
+      operationId: me_contexts_retrieve
+      summary: Workspace contexts the user may act in
+      tags:
+      - me
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContextList'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Sign-in required (not_authenticated).
 components:
   schemas:
     AccountTypeEnum:
@@ -455,10 +701,62 @@ components:
             $ref: '#/components/schemas/ProviderOption'
         passkeys_enabled:
           type: boolean
+        session_remember_days:
+          type: integer
+          description: Lifetime in days of a 'keep me signed in' session.
       required:
       - account_types
       - passkeys_enabled
       - providers
+      - session_remember_days
+    ContextList:
+      type: object
+      properties:
+        active:
+          type: string
+          nullable: true
+        contexts:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkspaceContext'
+      required:
+      - active
+      - contexts
+    ContextOrganization:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        kind:
+          type: string
+          description: organizer, venue or club.
+      required:
+      - id
+      - kind
+      - name
+    ContextStatusEnum:
+      enum:
+      - active
+      - selection_required
+      - no_access
+      type: string
+      description: |-
+        * `active` - A context is active.
+        * `selection_required` - Several contexts (or none active): the user chooses one.
+        * `no_access` - The account has no context it may act in.
+    ContextSwitchRequest:
+      type: object
+      properties:
+        context:
+          type: string
+          minLength: 1
+          description: ID of one of the user's contexts.
+          maxLength: 64
+      required:
+      - context
     EmailRequest:
       type: object
       properties:
@@ -499,6 +797,62 @@ components:
       - code
       - message
       - request_id
+    InvitationOrganization:
+      type: object
+      properties:
+        name:
+          type: string
+        kind:
+          $ref: '#/components/schemas/OrganizationKindEnum'
+      required:
+      - kind
+      - name
+    InvitationPreview:
+      type: object
+      properties:
+        organization:
+          $ref: '#/components/schemas/InvitationOrganization'
+        account_type:
+          type: string
+          description: 'The workspace the invitation opens: organization, venue or
+            club.'
+        role:
+          type: string
+        email:
+          type: string
+          description: The invited address, partly masked.
+        expires_at:
+          type: string
+          format: date-time
+        state:
+          $ref: '#/components/schemas/InvitationStateEnum'
+      required:
+      - account_type
+      - email
+      - expires_at
+      - organization
+      - role
+      - state
+    InvitationStateEnum:
+      enum:
+      - pending
+      - expired
+      - accepted
+      type: string
+      description: |-
+        * `pending` - Can be accepted.
+        * `expired` - Past its expiry; ask for a new invitation.
+        * `accepted` - Already used.
+    InvitationTokenRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 1
+          description: The token from the emailed link.
+          maxLength: 128
+      required:
+      - token
     LoginRequest:
       type: object
       properties:
@@ -510,34 +864,67 @@ components:
           type: string
           minLength: 1
         account_type:
-          $ref: '#/components/schemas/AccountTypeEnum'
+          nullable: true
+          description: |-
+            Preferred workspace (the sign-in tile). A preference only: it selects among the contexts the account's memberships grant and never grants one.
+
+            * `organization` - Organization
+            * `venue` - Venue
+            * `club` - Team / Club
+            * `individual` - Individual
+          oneOf:
+          - $ref: '#/components/schemas/AccountTypeEnum'
+          - $ref: '#/components/schemas/NullEnum'
         remember:
           type: boolean
           default: false
       required:
-      - account_type
       - email
       - password
-    Membership:
+    LoginResponse:
       type: object
+      description: '`authenticated` is always present; the other fields only when
+        it is true.'
       properties:
-        organization_id:
-          type: integer
-        organization_name:
-          type: string
-        organization_kind:
-          type: string
-        role:
-          type: string
-          maxLength: 60
+        authenticated:
+          type: boolean
+        user:
+          $ref: '#/components/schemas/SessionUser'
+        context:
+          allOf:
+          - $ref: '#/components/schemas/WorkspaceContext'
+          nullable: true
+        contexts:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkspaceContext'
+        context_status:
+          $ref: '#/components/schemas/ContextStatusEnum'
+        context_ended:
+          type: boolean
+          description: The previous context stopped being valid (membership or organization
+            ended).
+        preference_matched:
+          type: boolean
+          nullable: true
+          description: Whether the preferred workspace matched a context; null without
+            a preference.
       required:
-      - organization_id
-      - organization_kind
-      - organization_name
-      - role
+      - authenticated
+      - preference_matched
     NullEnum:
       enum:
       - null
+    OrganizationKindEnum:
+      enum:
+      - organizer
+      - venue
+      - club
+      type: string
+      description: |-
+        * `organizer` - Competition organizer
+        * `venue` - Venue operator
+        * `club` - Team / club
     PasswordResetConfirmRequest:
       type: object
       properties:
@@ -629,29 +1016,28 @@ components:
           type: boolean
         user:
           $ref: '#/components/schemas/SessionUser'
-        account_type:
+        context:
+          allOf:
+          - $ref: '#/components/schemas/WorkspaceContext'
           nullable: true
-          oneOf:
-          - $ref: '#/components/schemas/AccountTypeEnum'
-          - $ref: '#/components/schemas/NullEnum'
-        active_organization_id:
-          type: integer
-          nullable: true
-        available_account_types:
+        contexts:
           type: array
           items:
-            $ref: '#/components/schemas/AccountTypeEnum'
-        memberships:
-          type: array
-          items:
-            $ref: '#/components/schemas/Membership'
+            $ref: '#/components/schemas/WorkspaceContext'
+        context_status:
+          $ref: '#/components/schemas/ContextStatusEnum'
+        context_ended:
+          type: boolean
+          description: The previous context stopped being valid (membership or organization
+            ended).
       required:
       - authenticated
     SessionUser:
       type: object
       properties:
         id:
-          type: integer
+          type: string
+          format: uuid
         email:
           type: string
           format: email
@@ -681,6 +1067,61 @@ components:
       required:
       - token
       - uid
+    VersionConflict:
+      type: object
+      properties:
+        error:
+          $ref: '#/components/schemas/VersionConflictDetail'
+      required:
+      - error
+    VersionConflictDetail:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Stable, machine-readable error code.
+        message:
+          type: string
+          description: Message that is safe to show to the user.
+        request_id:
+          type: string
+          description: Correlation ID of the request (also in X-Request-ID).
+        fields:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          description: Messages per input field, when the error concerns specific
+            fields.
+        current_version:
+          type: integer
+          description: The version currently stored.
+      required:
+      - code
+      - current_version
+      - message
+      - request_id
+    WorkspaceContext:
+      type: object
+      properties:
+        id:
+          type: string
+          description: '`individual`, or the organization''s ID.'
+        account_type:
+          $ref: '#/components/schemas/AccountTypeEnum'
+        organization:
+          allOf:
+          - $ref: '#/components/schemas/ContextOrganization'
+          nullable: true
+        role:
+          type: string
+          nullable: true
+      required:
+      - account_type
+      - id
+      - organization
+      - role
   securitySchemes:
     cookieAuth:
       type: apiKey

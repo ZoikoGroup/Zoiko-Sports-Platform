@@ -5,13 +5,12 @@ import { expect } from '@playwright/test'
 
 const MAIL_DIR = join(dirname(fileURLToPath(import.meta.url)), '.tmp', 'mail')
 
-/** Latest link to `path` (e.g. "/verify-email") emailed to `to` by the e2e backend. */
-export async function linkFromEmail(to: string, path: string): Promise<string> {
+/** Latest link matching `pattern` (a global RegExp) in an email the e2e backend sent to `to`. */
+async function latestLink(to: string, pattern: RegExp, what: string): Promise<string> {
   let link: string | undefined
   await expect
     .poll(
       () => {
-        const pattern = new RegExp(`https?://\\S+${path}\\?uid=[\\w-]+&token=[\\w-]+`, 'g')
         const messages = readdirSync(MAIL_DIR)
           .sort()
           .map((file) => readFileSync(join(MAIL_DIR, file), 'utf8'))
@@ -20,8 +19,18 @@ export async function linkFromEmail(to: string, path: string): Promise<string> {
         link = messages.flatMap((message) => message.match(pattern) ?? []).at(-1)
         return link
       },
-      { message: `waiting for ${path} email to ${to}`, timeout: 10_000 },
+      { message: `waiting for ${what} email to ${to}`, timeout: 10_000 },
     )
     .toBeTruthy()
   return link!
+}
+
+/** Latest link to `path` (e.g. "/verify-email") emailed to `to` by the e2e backend. */
+export function linkFromEmail(to: string, path: string): Promise<string> {
+  return latestLink(to, new RegExp(`https?://\\S+${path}\\?uid=[\\w-]+&token=[\\w-]+`, 'g'), path)
+}
+
+/** Latest invitation link (token in the URL fragment) emailed to `to`. */
+export function invitationLinkFromEmail(to: string): Promise<string> {
+  return latestLink(to, /https?:\/\/\S+\/invitations\/accept#token=[\w-]+/g, 'invitation')
 }

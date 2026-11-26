@@ -2,9 +2,11 @@ import { LoaderCircle } from 'lucide-react'
 import { lazy, Suspense, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth/AuthContext'
-import { homePathFor, isOrganizer, ORGANIZER_HOME } from './auth/roles'
+import { CHOOSE_WORKSPACE, homePathFor, isOrganizer, ORGANIZER_HOME } from './auth/roles'
 import { AuthLayout } from './components/AuthLayout'
+import { ChooseWorkspacePage } from './pages/ChooseWorkspacePage'
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
+import { INVITATION_PATH, InvitationPage } from './pages/InvitationPage'
 import { LoginPage } from './pages/LoginPage'
 import { RegisterPage } from './pages/RegisterPage'
 import { ResetPasswordPage } from './pages/ResetPasswordPage'
@@ -33,15 +35,30 @@ function Splash() {
  * Guest screens (sign-in, registration) render immediately while the check runs,
  * so the card never swaps a loader for the form and shifts the layout; they
  * redirect only if the check finds an existing session.
- * `role="organizer"` additionally limits a member route to organizer sessions;
- * anyone else is sent to their own home.
+ * Member routes also need an active workspace context (resolved by the server);
+ * without one the person is sent to choose one, except on the chooser itself
+ * (`anyContext`). `role="organizer"` additionally limits a member route to
+ * organizer contexts; anyone else is sent to their own home.
  */
-function Gate({ require, role, children }: { require: 'guest' | 'member'; role?: 'organizer'; children: ReactNode }) {
+function Gate({
+  require,
+  role,
+  anyContext = false,
+  children,
+}: {
+  require: 'guest' | 'member'
+  role?: 'organizer'
+  anyContext?: boolean
+  children: ReactNode
+}) {
   const { session } = useAuth()
   const location = useLocation()
   if (session === null) return require === 'guest' ? children : <Splash />
   if (require === 'member' && !session.authenticated) {
-    return <Navigate to="/login" replace state={{ from: location.pathname }} />
+    return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />
+  }
+  if (require === 'member' && session.authenticated && !session.context && !anyContext) {
+    return <Navigate to={CHOOSE_WORKSPACE} replace />
   }
   if (require === 'guest' && session.authenticated) {
     // Signing in re-renders this gate before the sign-in page can navigate, so
@@ -82,6 +99,8 @@ export default function App() {
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/verify-email" element={<VerifyEmailPage />} />
             <Route path="/workspace" element={<Gate require="member"><MemberHome /></Gate>} />
+            <Route path={CHOOSE_WORKSPACE} element={<Gate require="member" anyContext><ChooseWorkspacePage /></Gate>} />
+            <Route path={INVITATION_PATH} element={<InvitationPage />} />
           </Route>
           <Route
             path="/organizer"

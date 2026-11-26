@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Zoiko Sports backend CI pipeline. Every step must pass; the first failure stops it.
 #
-#   lint → format → types → Django checks (incl. module boundaries) → migrations
+#   lint → format → types → Django checks (incl. module boundaries) → tracker → migrations
 #   complete → API schema matches openapi.yaml → tests + coverage
 #   → dependency audit → image build → image vulnerability scan
 #
@@ -77,6 +77,9 @@ fi
 
 step "Django system checks"
 "$PYTHON" manage.py check --fail-level WARNING
+
+step "Implementation tracker (backend/docs)"
+"$PYTHON" manage.py check_tracker
 
 step "Migrations match the models"
 "$PYTHON" manage.py makemigrations --check --dry-run

@@ -164,6 +164,73 @@
   margin-top: var(--s-header-gap);
 }
 
+/* Workspace chooser ------------------------------------------------------ */
+.workspace-choices {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.workspace-choice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 18px;
+  border: 1px solid var(--tile-border);
+  border-radius: var(--s-tile-radius);
+  background: var(--tile-bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--s-body);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+.workspace-choice:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.workspace-choice:focus-visible {
+  border-color: var(--accent);
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.workspace-choice:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.workspace-choice[aria-current] {
+  border-width: 2px;
+}
+
+.workspace-choice__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.workspace-choice__name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.workspace-choice__role {
+  font-size: calc(var(--s-body) * 0.9);
+  color: var(--ink-3);
+}
+
+.workspace-switch {
+  margin-top: 12px;
+}
+
 .verify-progress {
   display: inline-flex;
   align-items: center;

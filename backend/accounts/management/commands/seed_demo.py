@@ -13,12 +13,13 @@ from django.contrib.auth import password_validation
 from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 
-from accounts.models import Membership, Organization, User
+from accounts.models import User
+from organizations.services import ensure_organization, grant_membership
 
 ORGANIZATIONS = {
-    "organizer": ("Riverside Invitational", Organization.Kind.ORGANIZER),
-    "venue": ("Northfield Arena", Organization.Kind.VENUE),
-    "club": ("Club A", Organization.Kind.CLUB),
+    "organizer": ("Riverside Invitational", "organizer"),
+    "venue": ("Northfield Arena", "venue"),
+    "club": ("Club A", "club"),
 }
 
 # email -> (full name, [(organization key, role)])
@@ -51,7 +52,8 @@ class Command(BaseCommand):
 
         orgs = {}
         for key, (name, kind) in ORGANIZATIONS.items():
-            orgs[key], _ = Organization.objects.get_or_create(name=name, kind=kind, defaults={"jurisdiction": "US-CA"})
+            # Created verified: demo organizations are usable straight away.
+            orgs[key] = ensure_organization(name=name, kind=kind, jurisdiction="US-CA")
 
         for email, (full_name, memberships) in USERS.items():
             user = User.objects.filter(email=email).first() or User(email=email)
@@ -60,9 +62,7 @@ class Command(BaseCommand):
             user.set_password(password)
             user.save()
             for org_key, role in memberships:
-                Membership.objects.update_or_create(
-                    user=user, organization=orgs[org_key], defaults={"role": role, "status": Membership.Status.ACTIVE}
-                )
+                grant_membership(user=user, organization=orgs[org_key], role=role)
             self.stdout.write(f"  {email}")
 
         self.stdout.write(self.style.SUCCESS("Demo accounts ready (password from ZS_DEMO_PASSWORD)."))
