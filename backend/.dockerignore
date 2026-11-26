@@ -11,6 +11,8 @@ docker-compose*.yml
 .env
 .env.*
 README.md
+**/README.md
+docs/
 # Development and CI tooling is not needed at runtime.
 scripts/
 requirements-dev.*

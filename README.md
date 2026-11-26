@@ -13,7 +13,11 @@ The repository has two top-level folders, plus the GitHub Actions workflow
 | --- | --- |
 | [`frontend/`](frontend) | React + TypeScript single-page app, its nginx image and the end-to-end tests |
 | [`backend/`](backend) | Django REST API, its Docker image, and the Docker Compose files for the whole application |
-| [`.github/workflows/`](.github/workflows) | `ci.yml` — runs both CI pipelines on every push and pull request |
+| [`.github/workflows/`](.github/workflows) | `ci.yml` — runs the CI pipelines and browser tests on every push and pull request |
+
+**Project status and roadmap:** start at [`backend/docs/STATUS.md`](backend/docs/STATUS.md).
+What is built, what remains (P0–P13), who is working on what, the decisions behind it and how
+to continue all live in [`backend/docs/`](backend/docs/README.md), checked by CI.
 
 ---
 
@@ -103,6 +107,8 @@ Open **http://localhost:8080/login**. Details in [§5](#5-run-with-docker) and [
 
 ```
 backend/
+  docs/                     project status, roadmap P0–P13, decisions, handover — start at STATUS.md
+                            (every module also has a README.md describing itself)
   accounts/                 identity: users, sign-in, the active workspace context
     management/commands/
       seed_demo.py          fictional demo organizations + accounts
@@ -138,6 +144,7 @@ backend/
     openapi.py              shared OpenAPI pieces (error responses, Idempotency-Key header)
     boundaries.py, checks.py  module boundary rule as a `manage.py check` system check
     app_template/           template for new modules (`startapp --template`)
+    tracker.py              validates backend/docs (`manage.py check_tracker`, run in CI)
     logging.py              JSON log formatter + request-ID log filter
     health.py, urls.py      /api/v1/health/live/ and /api/v1/health/ready/
     management/commands/
@@ -501,28 +508,12 @@ intentional API change, review the difference and regenerate it with
 
 ### Platform conventions (`backend/platform_core`)
 
-Every module follows these rules; the kernel implements them once.
-
-| Convention | Rule | Where |
-| --- | --- | --- |
-| Errors | `{"error": {"code", "message", "request_id", "fields"?}}` for every API error, including unknown URLs, CSRF failures, rejected hosts and unexpected server errors (no HTML, no stack traces). Codes are listed in `ERROR_CODES` | `errors.py` |
-| Correlation ID | Every response carries `X-Request-ID` (nginx's `$request_id`, else generated); the same ID is in the error body and in every log line of the request, including gunicorn's access line | `request_context.py`, `middleware.py`, `logging.py` |
-| Records | Records exposed through the API have a random UUID `public_id`, used as `"id"` in URLs and responses (integer keys stay internal), plus `created_at` / `updated_at` | `models.py` (`PlatformModel`) |
-| Versioned edits | Editable records carry `version` (starts at 1). An edit states the version it was based on; if the stored version moved on, the answer is `409 version_conflict` with `current_version`. The check and the change are one SQL statement, so of two simultaneous edits exactly one succeeds | `models.py` (`VersionedModel`), `concurrency.py` |
-| Idempotent creates | Creates require an `Idempotency-Key` header (a new UUID per submission). A retry with the same key returns the original response with `Idempotent-Replayed: true`; the same key with a different body is `422 idempotency_key_reused`; a duplicate arriving while the first is still running is `409 request_in_progress`. Keys belong to one user and expire after `IDEMPOTENCY_TTL_HOURS` | `idempotency.py` |
-| Lists | Cursor pages: `?page_size=&cursor=` → `{"next", "previous", "results"}`; newest first by default; page size capped at `API_MAX_PAGE_SIZE`; a bad cursor is `400 invalid_cursor` | `pagination.py` |
-| Filters | Declared per list as a serializer; `q` is free-text search; unknown or repeated parameters are `400 validation_error` | `filtering.py` |
-| Time | Instants in RFC 3339 with an offset, stored and returned in UTC (`…Z`); a time without an offset is rejected. Time zones are canonical IANA names (`Europe/London`; not `EST` or `US/Eastern`). Local times that don't exist (clocks forward) or happen twice (clocks back) are rejected unless the caller picks a side | `timeutils.py`, `fields.py` |
-| Workspace context | Every request acts for one verified context (an organization membership or the Individual workspace), re-checked on every request by `accounts.middleware`. Module views that act for an organization use `permission_classes = [IsAuthenticated, HasWorkspaceContext]` and scope queries with `request.workspace_context.organization_id`; without a context the answer is `403 context_required` | `workspace.py` |
-| Modules | New modules start from `python manage.py startapp <name> --template=platform_core/app_template` (layout: `api/`, `services.py`, `selectors.py`, `policies.py`, `events.py`, `models.py`, `tests/`). Modules may use each other only through `services` and `selectors`; `manage.py check` (and so CI) fails on any other cross-module import | `app_template/`, `boundaries.py` |
-
-`platform_core/tests/reference/` is a test-only module (installed only under
-`manage.py test`) that uses every convention through real HTTP calls; copy its
-shape when building a module.
-
-Expired idempotency records are removed whenever their user stores a new one;
-`python manage.py purge_idempotency_records` removes all of them and can run on
-a schedule.
+Every module follows the same rules (errors, correlation IDs, public UUIDs, versioned
+edits, idempotent creates, cursor pages, filters, time zones, workspace context, module
+boundaries, migrations). They are listed in one place:
+[`backend/docs/conventions.md`](backend/docs/conventions.md). How modules fit together is
+in [`backend/docs/architecture.md`](backend/docs/architecture.md), and each module explains
+itself in its own `README.md`.
 
 ### Authentication API
 

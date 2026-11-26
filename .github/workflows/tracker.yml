@@ -1,0 +1,54 @@
+# Keeps the implementation tracker (backend/docs) in step with the code (D-038).
+# On every pull request to main, and again whenever its title is edited:
+#   - the title names its work package ("[P3.2] …") or is "[Fix]", "[CI]" or "[Docs]";
+#   - code changes come with that work package's tracker update (👀 or ✅);
+#   - the tracker as a whole is consistent (manage.py check_tracker).
+# Separate from ci.yml so a title edit re-runs only this quick check.
+name: Tracker
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tracker-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  tracker:
+    name: tracker
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      # Settings for running management commands without a database or a real secret.
+      DJANGO_READ_DOTENV: "false"
+      DJANGO_DEBUG: "true"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install locked dependencies (hash-verified)
+        run: python -m pip install --require-hashes -r requirements.txt
+      - name: Pull request names its work and updates the tracker
+        # The title is passed through the environment, never pasted into the script.
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git diff --name-only "origin/${BASE_REF}...HEAD" > "$RUNNER_TEMP/changed-files.txt"
+          python manage.py check_pull_request --title "$PR_TITLE" --changed-files "$RUNNER_TEMP/changed-files.txt"
+      - name: Tracker is consistent
+        run: python manage.py check_tracker

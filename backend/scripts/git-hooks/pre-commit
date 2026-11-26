@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Optional git hook (D-038): when a commit touches backend/docs, refresh the generated
+# tracker files (ROADMAP.md, decisions/README.md) and add them to the same commit.
+# If the tracker has a problem, the commit stops and the problem is printed.
+#
+# Install once per clone, from the repository root:
+#   git config core.hooksPath backend/scripts/git-hooks
+# (Linux/macOS: also run  chmod +x backend/scripts/git-hooks/pre-commit)
+set -euo pipefail
+
+if ! git diff --cached --name-only | grep -q '^backend/docs/'; then
+  exit 0
+fi
+
+cd "$(git rev-parse --show-toplevel)/backend"
+python=python
+for candidate in .venv/Scripts/python.exe .venv/bin/python; do
+  if [ -x "$candidate" ]; then python=$candidate; break; fi
+done
+
+DJANGO_READ_DOTENV=false DJANGO_DEBUG=true "$python" manage.py check_tracker --write
+git add docs/ROADMAP.md docs/decisions/README.md

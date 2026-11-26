@@ -18,7 +18,10 @@ const LABEL = 'zoiko-sports.e2e=1'
 const here = dirname(fileURLToPath(import.meta.url))
 const backend = resolve(here, '..', '..', 'backend')
 const tmp = join(here, '.tmp')
-const python = [join(backend, '.venv', 'Scripts', 'python.exe'), join(backend, '.venv', 'bin', 'python')].find(existsSync)
+// E2E_PYTHON names the interpreter explicitly (GitHub CI); otherwise backend/.venv is used.
+const python =
+  process.env.E2E_PYTHON ||
+  [join(backend, '.venv', 'Scripts', 'python.exe'), join(backend, '.venv', 'bin', 'python')].find(existsSync)
 if (!python) throw new Error(`No virtualenv found in ${backend}/.venv — create it and install requirements-dev.txt`)
 
 rmSync(tmp, { recursive: true, force: true })
