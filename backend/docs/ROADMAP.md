@@ -19,8 +19,8 @@ Status: ⬜ Pending · 🔄 In progress · 👀 In review · ✅ Done · ⛔ Blo
 | P0 | [Engineering foundation](roadmap/P00-foundation.md) | 🔄 In progress | 8 / 9 | A | — | D-001 to D-011, D-013 | Every later phase |
 | P1 | [Platform kernel](roadmap/P01-kernel.md) | ✅ Done | 9 / 9 | A | P0 | D-014 to D-021 | The conventions every module reuses |
 | P2 | [Identity and organization context](roadmap/P02-identity.md) | ✅ Done | 6 / 6 | A | P1 | D-024 to D-032 | Workspace chooser, switching without sign-out, invitations |
-| P3 | [Permissions and audit trail](roadmap/P03-permissions-audit.md) | 👀 In review | 9 / 9 | A | P2 | D-039, D-042, D-043, D-045 (GP1 assumed) | Secures every later endpoint |
-| P4 | [Event backbone](roadmap/P04-event-backbone.md) | 👀 In review | 5 / 5 | B | P1 | D-040, D-041, D-044 | Recent Updates; reliable side effects for P5–P12 |
+| P3 | [Permissions and audit trail](roadmap/P03-permissions-audit.md) | ✅ Done | 9 / 9 | A | P2 | D-039, D-042, D-043, D-045 (GP1 assumed) | Secures every later endpoint |
+| P4 | [Event backbone](roadmap/P04-event-backbone.md) | ✅ Done | 5 / 5 | B | P1 | D-040, D-041, D-044 | Recent Updates; reliable side effects for P5–P12 |
 | P5 | [Competitions and event participation](roadmap/P05-competitions.md) | ⬜ Pending | 0 / 7 | A | P3, P4 | GD3, K3 and 4 more | Competitions & Events page |
 | P6 | [Fixtures, schedule revisions and approvals](roadmap/P06-fixtures-approvals.md) | ⬜ Pending | 0 / 5 | A | P5 | K4, D08 and 4 more | Fixtures & Schedule page |
 | P7 | [Notifications and acknowledgments](roadmap/P07-notifications.md) | ⬜ Pending | 0 / 4 | B | P6 (core: P4 + P6 event formats, see D-035) | GI2, GB3, GB6 | Notifications bell |
@@ -35,11 +35,11 @@ Status: ⬜ Pending · 🔄 In progress · 👀 In review · ✅ Done · ⛔ Blo
 
 Newest first, from the phase files' progress logs.
 
-- 2026-11-26 · [P4](roadmap/P04-event-backbone.md) · P4.1, P4.5 · vivekkumar (PR to open) · schema corrections (D-046): database CHECK constraints for values and states, redundant indexes removed, hous…
-- 2026-11-26 · [P4](roadmap/P04-event-backbone.md) · P4.1–P4.5 · vivekkumar (PR to open) · outbox, worker, event registry and catalogue, operations commands, activity feed.
-- 2026-11-26 · [P3](roadmap/P03-permissions-audit.md) · P3.1, P3.7 · vivekkumar (PR to open) · schema corrections (D-046): database CHECK constraints for values and states, redundant indexes removed, hous…
-- 2026-11-26 · [P3](roadmap/P03-permissions-audit.md) · P3.1–P3.9 · vivekkumar (PR to open) · permission engine, role catalogue, audit trail, deny-by-default check, permission matrix, admin restriction.
-- 2026-11-26 · [P2](roadmap/P02-identity.md) · P2.1 · vivekkumar (PR to open) · schema corrections (D-046): database CHECK constraints for values and states, redundant indexes removed, hous…
+- 2026-11-26 · [P4](roadmap/P04-event-backbone.md) · P4.1, P4.5 · PR #5 · schema corrections (D-046): database CHECK constraints for values and states, redundant indexes removed, hous…
+- 2026-11-26 · [P4](roadmap/P04-event-backbone.md) · P4.1–P4.5 · PR #5 · outbox, worker, event registry and catalogue, operations commands, activity feed.
+- 2026-11-26 · [P3](roadmap/P03-permissions-audit.md) · P3.1, P3.7 · PR #5 · schema corrections (D-046): database CHECK constraints for values and states, redundant indexes removed, hous…
+- 2026-11-26 · [P3](roadmap/P03-permissions-audit.md) · P3.1–P3.9 · PR #5 · permission engine, role catalogue, audit trail, deny-by-default check, permission matrix, admin restriction.
+- 2026-11-26 · [P2](roadmap/P02-identity.md) · P2.1 · PR #5 · schema corrections (D-046): database CHECK constraints for values and states, redundant indexes removed, hous…
 - 2026-11-26 · [P2](roadmap/P02-identity.md) · P2.5 · Stage 0 · fixed a first-visit CSRF race: an invitation link opened in a fresh browser could be refused ("session expire…
 - 2026-11-26 · [P0](roadmap/P00-foundation.md) · P0.8 · Stage 0 · tracker enforced on pull requests (D-038): titles name their work package, code arrives with its tracker upda…
 - 2026-11-26 · [P0](roadmap/P00-foundation.md) · P0.8 · Stage 0 · decision log moved into `backend/docs/decisions/`;

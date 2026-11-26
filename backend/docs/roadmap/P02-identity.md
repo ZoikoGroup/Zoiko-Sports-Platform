@@ -75,4 +75,4 @@
 
 - 2026-11-25 · P2.1–P2.6 · 9b8838b, b44873b · identity and organization context; pushed to `vivekkumar`. Merged in PR #4.
 - 2026-11-26 · P2.5 · Stage 0 · fixed a first-visit CSRF race: an invitation link opened in a fresh browser could be refused ("session expired") because two responses set different CSRF cookies. `frontend/src/api/client.ts` now shares one token bootstrap and retries once on `csrf_failed`. Found by the browser suite.
-- 2026-11-26 · P2.1 · vivekkumar (PR to open) · schema corrections (D-046): database CHECK constraints for values and states, redundant indexes removed, housekeeping scheduled.
+- 2026-11-26 · P2.1 · PR #5 · schema corrections (D-046): database CHECK constraints for values and states, redundant indexes removed, housekeeping scheduled.

@@ -2,7 +2,7 @@
 
 | Phase | Status | Owner | Needs | Decisions | Unlocks |
 |---|---|---|---|---|---|
-| P4 | 👀 In review | B | P1 | D-040, D-041, D-044 | Recent Updates; reliable side effects for P5–P12 |
+| P4 | ✅ Done | B | P1 | D-040, D-041, D-044 | Recent Updates; reliable side effects for P5–P12 |
 
 **Objective:** reliable side effects. "Approved but nobody was told" and "told twice" must be impossible.
 
@@ -18,11 +18,11 @@
 
 | ID | Work package | Status | Owner | Depends on | PR / commit |
 |---|---|---|---|---|---|
-| P4.1 | Transactional outbox: a change and its event saved in one transaction | ✅ Done | B | P1 | vivekkumar (PR to open) |
-| P4.2 | Background worker (PostgreSQL-backed) with retries, backoff, dead letters | ✅ Done | B | P4.1 | vivekkumar (PR to open) |
-| P4.3 | Event registry and versioning rules; duplicate- and order-tolerant consumers | ✅ Done | B | P4.1 | vivekkumar (PR to open) |
-| P4.5 | Operations tooling: replay dead letters, measure outbox lag | ✅ Done | B | P4.2 | vivekkumar (PR to open) |
-| P4.4 | Activity feed: readable, permission-scoped entries from events | ✅ Done | B | P4.3, P3.3 | vivekkumar (PR to open) |
+| P4.1 | Transactional outbox: a change and its event saved in one transaction | ✅ Done | B | P1 | PR #5 |
+| P4.2 | Background worker (PostgreSQL-backed) with retries, backoff, dead letters | ✅ Done | B | P4.1 | PR #5 |
+| P4.3 | Event registry and versioning rules; duplicate- and order-tolerant consumers | ✅ Done | B | P4.1 | PR #5 |
+| P4.5 | Operations tooling: replay dead letters, measure outbox lag | ✅ Done | B | P4.2 | PR #5 |
+| P4.4 | Activity feed: readable, permission-scoped entries from events | ✅ Done | B | P4.3, P3.3 | PR #5 |
 
 ### P4.1 Transactional outbox
 - **Code:** `backend/outbox/models.py`, `backend/outbox/services.py`, `backend/organizations/services.py`
@@ -70,5 +70,5 @@ None yet, as planned: the "Recent Updates" cards connect through the screen endp
 
 ## Progress log
 
-- 2026-11-26 · P4.1–P4.5 · vivekkumar (PR to open) · outbox, worker, event registry and catalogue, operations commands, activity feed.
-- 2026-11-26 · P4.1, P4.5 · vivekkumar (PR to open) · schema corrections (D-046): database CHECK constraints for values and states, redundant indexes removed, housekeeping scheduled.
+- 2026-11-26 · P4.1–P4.5 · PR #5 · outbox, worker, event registry and catalogue, operations commands, activity feed.
+- 2026-11-26 · P4.1, P4.5 · PR #5 · schema corrections (D-046): database CHECK constraints for values and states, redundant indexes removed, housekeeping scheduled.

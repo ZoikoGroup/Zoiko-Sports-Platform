@@ -22,7 +22,9 @@ export default defineConfig({
   expect: { timeout: 10_000 },
   fullyParallel: false,
   workers: 1,
-  retries: 0,
+  // On GitHub's shared machines a test may retry once; it is then reported as "flaky"
+  // (still visible in the log) instead of failing the run. Locally: no retries.
+  retries: process.env.CI ? 1 : 0,
   reporter: [['list']],
   use: {
     baseURL: WEB,

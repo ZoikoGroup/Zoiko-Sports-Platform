@@ -2,7 +2,7 @@
 
 | Phase | Status | Owner | Needs | Decisions | Unlocks |
 |---|---|---|---|---|---|
-| P3 | 👀 In review | A | P2 | D-039, D-042, D-043, D-045 (GP1 assumed) | Secures every later endpoint |
+| P3 | ✅ Done | A | P2 | D-039, D-042, D-043, D-045 (GP1 assumed) | Secures every later endpoint |
 
 **Objective:** one permission engine and one tamper-resistant audit trail that every later module plugs into.
 
@@ -18,15 +18,15 @@
 
 | ID | Work package | Status | Owner | Depends on | PR / commit |
 |---|---|---|---|---|---|
-| P3.1 | Role, permission and participation-profile tables (roles as data) | ✅ Done | A | P2 | vivekkumar (PR to open) |
-| P3.2 | Policy engine: "may this actor do this to that?" | ✅ Done | A | P3.1 | vivekkumar (PR to open) |
-| P3.3 | Scoped queries: lists, counts, search and exports start from visible rows | ✅ Done | A | P3.2 | vivekkumar (PR to open) |
-| P3.4 | Response rule: hidden → 404, visible but forbidden → 403 | ✅ Done | A | P3.2 | vivekkumar (PR to open) |
-| P3.5 | Allowed actions listed for each record | ✅ Done | A | P3.2 | vivekkumar (PR to open) |
-| P3.6 | Deny by default: the build fails if an endpoint has no permission rule | ✅ Done | A | P3.2 | vivekkumar (PR to open) |
-| P3.7 | Append-only audit trail (database-enforced) | ✅ Done | A | P3.1 | vivekkumar (PR to open) |
-| P3.8 | Permission-matrix test harness on the golden event (adds Club B and uninvited Club C) | ✅ Done | A | P3.2–P3.6 | vivekkumar (PR to open) |
-| P3.9 | Django `/admin/` limited to Zoiko staff | ✅ Done | A | — | vivekkumar (PR to open) |
+| P3.1 | Role, permission and participation-profile tables (roles as data) | ✅ Done | A | P2 | PR #5 |
+| P3.2 | Policy engine: "may this actor do this to that?" | ✅ Done | A | P3.1 | PR #5 |
+| P3.3 | Scoped queries: lists, counts, search and exports start from visible rows | ✅ Done | A | P3.2 | PR #5 |
+| P3.4 | Response rule: hidden → 404, visible but forbidden → 403 | ✅ Done | A | P3.2 | PR #5 |
+| P3.5 | Allowed actions listed for each record | ✅ Done | A | P3.2 | PR #5 |
+| P3.6 | Deny by default: the build fails if an endpoint has no permission rule | ✅ Done | A | P3.2 | PR #5 |
+| P3.7 | Append-only audit trail (database-enforced) | ✅ Done | A | P3.1 | PR #5 |
+| P3.8 | Permission-matrix test harness on the golden event (adds Club B and uninvited Club C) | ✅ Done | A | P3.2–P3.6 | PR #5 |
+| P3.9 | Django `/admin/` limited to Zoiko staff | ✅ Done | A | — | PR #5 |
 
 ### P3.1 Role and permission tables
 - **Code:** `backend/access/models.py`, `backend/access/migrations/0002_seed_catalogue.py`, `backend/organizations/migrations/0003_roles_from_catalogue.py`, `backend/access/management/commands/access.py`
@@ -94,5 +94,5 @@ None new, as planned. The app now shows the catalogue's role names and receives 
 
 ## Progress log
 
-- 2026-11-26 · P3.1–P3.9 · vivekkumar (PR to open) · permission engine, role catalogue, audit trail, deny-by-default check, permission matrix, admin restriction.
-- 2026-11-26 · P3.1, P3.7 · vivekkumar (PR to open) · schema corrections (D-046): database CHECK constraints for values and states, redundant indexes removed, housekeeping scheduled.
+- 2026-11-26 · P3.1–P3.9 · PR #5 · permission engine, role catalogue, audit trail, deny-by-default check, permission matrix, admin restriction.
+- 2026-11-26 · P3.1, P3.7 · PR #5 · schema corrections (D-046): database CHECK constraints for values and states, redundant indexes removed, housekeeping scheduled.
