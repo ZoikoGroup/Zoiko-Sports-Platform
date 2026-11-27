@@ -9,6 +9,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# System packages are upgraded at build time so security fixes Debian published
+# after the base image was built are included (CI's image scan fails on any
+# fixable HIGH or CRITICAL vulnerability, e.g. CVE-2025-6020 in libpam, Nov 2026).
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN groupadd --system app && useradd --system --gid app --home-dir /app --no-create-home app
 
 # Dependencies first so code changes don't invalidate this layer. Every package
