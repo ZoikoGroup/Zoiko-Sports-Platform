@@ -233,9 +233,12 @@ class SeedDemoCommandTests(TestCase):
         self.assertEqual(
             [c.account_type for c in eligible_contexts(demo)], ["organization", "venue", "club", "individual"]
         )
-        # Re-running keeps one verified organization per name.
-        self.run_seed(ZS_DEMO_PASSWORD=PASSWORD)
-        self.assertEqual(Organization.objects.filter(status=Organization.Status.ACTIVE).count(), 5)
+        self.assertIn("Venue readiness set up: Northfield Arena, Harbour Point Stadium", output)
+        # Re-running keeps one verified organization per name (the golden five plus four demo venues)
+        # and sets nothing up twice.
+        again = self.run_seed(ZS_DEMO_PASSWORD=PASSWORD)
+        self.assertEqual(Organization.objects.filter(status=Organization.Status.ACTIVE).count(), 9)
+        self.assertNotIn("Venue readiness set up", again)
 
     @override_settings(DEBUG=True)
     def test_requires_a_password_from_the_environment(self):

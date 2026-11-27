@@ -11,6 +11,13 @@ tolerate duplicates and out-of-order delivery.
 Every event also carries: event ID, type, version, aggregate (type, ID, version),
 organization (public UUID, the visibility scope), occurred-at time and correlation ID.
 
+## Published by `competitions`
+
+| Event | Version | Payload | Meaning |
+|---|---|---|---|
+| `competition.created` | 1 | `competition_id`, `organization_id`, `sport` | An organizer created a competition. |
+| `event.scheduled` | 1 | `event_id`, `competition_id`, `organization_id`, `venue_id`, `starts_at` | An event of a competition was scheduled at a venue (starts_at in UTC). |
+
 ## Published by `organizations`
 
 | Event | Version | Payload | Meaning |
@@ -21,3 +28,12 @@ organization (public UUID, the visibility scope), occurred-at time and correlati
 | `membership.granted` | 1 | `membership_id`, `organization_id`, `user_id`, `role` | A person was made an active member directly (operator or demo set-up), not by invitation. |
 | `membership.status_changed` | 1 | `membership_id`, `organization_id`, `user_id`, `status`, `previous_status` | A membership was suspended, revoked or reactivated (by an operator or a re-invitation). |
 | `organization.status_changed` | 1 | `organization_id`, `status`, `previous_status` | An organization was verified, suspended or reinstated (pending, active, suspended). |
+
+## Published by `readiness`
+
+| Event | Version | Payload | Meaning |
+|---|---|---|---|
+| `readiness.check_reviewed` | 1 | `check_id`, `readiness_id`, `venue_id`, `organizer_id`, `state` | The organizer accepted a check or requested changes; state is accepted or changes_requested (scope: the venue). |
+| `readiness.check_submitted` | 1 | `check_id`, `readiness_id`, `venue_id`, `organizer_id`, `shared` | The venue submitted evidence for a check (scope: the venue; the organizer sees shared checks on its page). |
+| `readiness.opened` | 1 | `readiness_id`, `event_id`, `venue_id`, `organizer_id`, `checks`, `shared_checks` | A venue's readiness checklist for an event was set up (scope: the organizer). |
+| `readiness.update_requested` | 1 | `request_id`, `readiness_id`, `event_id`, `venue_id`, `organizer_id` | An organizer asked a venue to update its readiness (scope: the venue). |

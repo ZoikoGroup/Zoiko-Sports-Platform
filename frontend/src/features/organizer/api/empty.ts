@@ -4,7 +4,7 @@
  * their layout and show "—" or an explanatory empty state. Nothing here is
  * sample content.
  */
-import type { ActionCenterData, CompetitionsData, FixturesData, OrganizerOverview } from './types'
+import type { ActionCenterData, CompetitionsData, FixturesData, OrganizerOverview, VenuesData } from './types'
 
 const now = () => new Date().toISOString()
 
@@ -44,4 +44,13 @@ export const emptyFixtures = (): FixturesData => ({
   fixtures: [],
   conflicts: [],
   eventDays: [],
+})
+
+export const emptyVenues = (): VenuesData => ({
+  generatedAt: now(),
+  summary: null,
+  venues: [],
+  attention: [],
+  activity: [],
+  regions: [],
 })

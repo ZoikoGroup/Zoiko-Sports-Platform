@@ -7,6 +7,9 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("api/v1/me/", include("accounts.me_urls")),
     path("api/v1/invitations/", include("organizations.api.urls")),
     path("api/v1/activity/", include("activity.api.urls")),
+    path("api/v1/venue-readiness/", include("readiness.api.urls")),
+    # Screen endpoints: one read per page (/api/v1/organizer/<page>/).
+    path("api/v1/", include("workspaces.api.urls")),
     path("api/v1/health/", include("platform_core.urls")),
 ]
 

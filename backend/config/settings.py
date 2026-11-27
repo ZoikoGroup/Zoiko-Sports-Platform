@@ -79,6 +79,9 @@ INSTALLED_APPS = [
     "organizations",
     "outbox",
     "activity",
+    "competitions",
+    "readiness",
+    "workspaces",
 ]
 
 # `manage.py test` (also under coverage) adds the kernel's reference module: a

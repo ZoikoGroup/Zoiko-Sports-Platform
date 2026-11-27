@@ -715,6 +715,123 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
           description: Sign-in required (not_authenticated).
+  /api/v1/organizer/venues/:
+    get:
+      operationId: organizer_venues_retrieve
+      description: 'Readiness of the venues hosting the acting organizer''s events:
+        summary, queue, items needing attention, today''s activity and totals by region,
+        from one scoped read. Only checks the venue shared are included. Needs an
+        organization workspace whose role grants `readiness.view`.'
+      summary: Venues & Readiness page
+      tags:
+      - organizer
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VenuesScreen'
+          description: ''
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Sign-in required (not_authenticated).
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not allowed (permission_denied, csrf_failed, or a module-specific
+            code).
+  /api/v1/venue-readiness/{readiness_id}/update-requests/:
+    post:
+      operationId: venue_readiness_update_requests_create
+      description: The event's organizer asks the venue to update its readiness for
+        that event. The venue sees it in its activity feed. Needs an organization
+        workspace whose role grants `readiness.request_update`; readiness of another
+        organizer's event answers 404.
+      summary: Ask a venue to update its readiness
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        schema:
+          type: string
+        description: 'A new unique value (for example a UUID) per submission. Retrying
+          with the same key returns the original response (with Idempotent-Replayed:
+          true) instead of acting twice.'
+        required: true
+      - in: path
+        name: readiness_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - readiness
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRequestInputRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UpdateRequestInputRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UpdateRequestInputRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateRequest'
+          description: ''
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Invalid request (validation_error, invalid_cursor, idempotency_key_required,
+            ...).
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Sign-in required (not_authenticated).
+        '403':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not allowed (permission_denied, csrf_failed, or a module-specific
+            code).
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: Not found, or not visible to the caller (not_found).
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VersionConflict'
+          description: Conflict (version_conflict with current_version, or request_in_progress).
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: The Idempotency-Key was already used for a different request
+            (idempotency_key_reused).
 components:
   schemas:
     AccountTypeEnum:
@@ -739,6 +856,33 @@ components:
       required:
       - id
       - label
+    Activity:
+      type: object
+      properties:
+        id:
+          type: string
+        readiness_id:
+          type: string
+          format: uuid
+        venue:
+          type: string
+        summary:
+          type: string
+        kind:
+          $ref: '#/components/schemas/ActivityKindEnum'
+        at:
+          type: string
+          format: date-time
+        time_zone:
+          type: string
+      required:
+      - at
+      - id
+      - kind
+      - readiness_id
+      - summary
+      - time_zone
+      - venue
     ActivityEntry:
       type: object
       properties:
@@ -761,6 +905,38 @@ components:
       - kind
       - occurred_at
       - summary
+    ActivityKindEnum:
+      enum:
+      - completed
+      - in_progress
+      - scheduled
+      type: string
+      description: |-
+        * `completed` - completed
+        * `in_progress` - in_progress
+        * `scheduled` - scheduled
+    Attention:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The check that needs attention.
+        readiness_id:
+          type: string
+          format: uuid
+        venue:
+          type: string
+        detail:
+          type: string
+        severity:
+          $ref: '#/components/schemas/SeverityEnum'
+      required:
+      - detail
+      - id
+      - readiness_id
+      - severity
+      - venue
     AuthConfig:
       type: object
       properties:
@@ -782,6 +958,44 @@ components:
       - passkeys_enabled
       - providers
       - session_remember_days
+    Check:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        state:
+          $ref: '#/components/schemas/CheckStateEnum'
+        label:
+          type: string
+          description: Accepted, Submitted, Open, Changes requested or Overdue.
+      required:
+      - id
+      - label
+      - state
+      - title
+    CheckCount:
+      type: object
+      properties:
+        complete:
+          type: integer
+        total:
+          type: integer
+      required:
+      - complete
+      - total
+    CheckStateEnum:
+      enum:
+      - complete
+      - pending
+      - attention
+      type: string
+      description: |-
+        * `complete` - complete
+        * `pending` - pending
+        * `attention` - attention
     ContextList:
       type: object
       properties:
@@ -1089,6 +1303,19 @@ components:
       - message
       - request_id
       - retry_after
+    Region:
+      type: object
+      properties:
+        region:
+          type: string
+        ready:
+          type: integer
+        total:
+          type: integer
+      required:
+      - ready
+      - region
+      - total
     RegisterRequest:
       type: object
       properties:
@@ -1153,6 +1380,14 @@ components:
       - email
       - full_name
       - id
+    SeverityEnum:
+      enum:
+      - high
+      - medium
+      type: string
+      description: |-
+        * `high` - high
+        * `medium` - medium
     Status:
       type: object
       properties:
@@ -1161,6 +1396,33 @@ components:
           description: ok, accepted, verified or password_changed.
       required:
       - status
+    StatusEnum:
+      enum:
+      - ready
+      - pending_review
+      - needs_attention
+      type: string
+      description: |-
+        * `ready` - ready
+        * `pending_review` - pending_review
+        * `needs_attention` - needs_attention
+    Summary:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Venue readiness records in the queue (one per venue and event).
+        ready:
+          type: integer
+        pending_review:
+          type: integer
+        needs_attention:
+          type: integer
+      required:
+      - needs_attention
+      - pending_review
+      - ready
+      - total
     TokenRequest:
       type: object
       properties:
@@ -1173,6 +1435,143 @@ components:
       required:
       - token
       - uid
+    UpdateRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        readiness_id:
+          type: string
+          format: uuid
+          readOnly: true
+        message:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - message
+      - readiness_id
+    UpdateRequestInputRequest:
+      type: object
+      properties:
+        message:
+          type: string
+          description: What the venue should update, e.g. 'Upload the renewed fire
+            safety certificate.'
+          maxLength: 500
+      required:
+      - message
+    Venue:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The readiness record (one venue for one event).
+        venue_id:
+          type: string
+          format: uuid
+        venue:
+          type: string
+        event_id:
+          type: string
+          format: uuid
+        event:
+          type: string
+        competition_id:
+          type: string
+          format: uuid
+        competition:
+          type: string
+        city:
+          type: string
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2.
+        region:
+          type: string
+        time_zone:
+          type: string
+          description: The event's IANA time zone.
+        starts_at:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        evidence_items:
+          type: integer
+          description: Evidence the venue submitted for its shared checks.
+        checks:
+          allOf:
+          - $ref: '#/components/schemas/CheckCount'
+          nullable: true
+          description: Null when the venue shares no checks.
+        issue:
+          type: string
+          nullable: true
+          description: Why it needs attention.
+        check_list:
+          type: array
+          items:
+            $ref: '#/components/schemas/Check'
+          description: Shared checks only, in checklist order.
+      required:
+      - check_list
+      - checks
+      - city
+      - competition
+      - competition_id
+      - country
+      - event
+      - event_id
+      - evidence_items
+      - id
+      - issue
+      - region
+      - starts_at
+      - status
+      - time_zone
+      - venue
+      - venue_id
+    VenuesScreen:
+      type: object
+      properties:
+        generated_at:
+          type: string
+          format: date-time
+        summary:
+          $ref: '#/components/schemas/Summary'
+        venues:
+          type: array
+          items:
+            $ref: '#/components/schemas/Venue'
+        attention:
+          type: array
+          items:
+            $ref: '#/components/schemas/Attention'
+        activity:
+          type: array
+          items:
+            $ref: '#/components/schemas/Activity'
+          description: Today, in each event's time zone; newest first.
+        regions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Region'
+      required:
+      - activity
+      - attention
+      - generated_at
+      - regions
+      - summary
+      - venues
     VersionConflict:
       type: object
       properties:
