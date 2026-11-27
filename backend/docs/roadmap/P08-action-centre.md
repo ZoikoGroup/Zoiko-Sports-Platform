@@ -32,6 +32,7 @@
 
 ### P8.2 Sources
 - Each source is a small consumer of another module's events; venue readiness and exceptions (P12.1, P12.2) add theirs later without changing the engine.
+- Venue readiness has no "became overdue" event yet: P12.14 adds `readiness.check_overdue` at the start of P8, so overdue checks can become Action Centre items.
 
 ### P8.3 Totals equal lists
 - Every summary figure comes from the same query as its list.
