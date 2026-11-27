@@ -48,9 +48,12 @@ fragment, which browsers never send to servers.
 
 ## Events, permissions, audit
 
-- **Events:** `events.py` is reserved; invitation and membership events arrive with P4.
-- **Permissions:** `policies.py` is reserved; who may invite is decided by P3 (D-032).
-- **Audit:** P3.7.
+- **Events published** (`events.py`, scope: the organization concerned): `organization.status_changed`,
+  `invitation.created`, `invitation.revoked`, `invitation.accepted`, `membership.granted`,
+  `membership.status_changed`. Consumer: `activity.feed`.
+- **Permissions:** no organization endpoints yet; self-service invitations use `invitation.manage` (P12.3, D-032).
+- **Audit:** `organization.created` / `verified` / `suspended` / `reinstated`, `membership.granted` /
+  `status_changed`, `invitation.created` / `revoked` / `accepted` / `accept_refused`.
 
 ## Tests
 

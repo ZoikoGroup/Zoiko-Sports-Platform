@@ -9,8 +9,8 @@ Status: ⬜ Pending · 🔄 In progress · 👀 In review · ✅ Done · ⛔ Blo
 
 ## Overall
 
-- **Phase 1 (P0 to P12):** 37 of 79 work packages done (47%)
-- **Whole roadmap (P0 to P13):** 37 of 84 work packages done (44%)
+- **Phase 1 (P0 to P12):** 38 of 79 work packages done (48%)
+- **Whole roadmap (P0 to P13):** 38 of 84 work packages done (45%)
 
 ## Phases
 
@@ -28,14 +28,14 @@ Status: ⬜ Pending · 🔄 In progress · 👀 In review · ✅ Done · ⛔ Blo
 | P9 | [Overview analytics and search](roadmap/P09-overview-search.md) | ⬜ Pending | 0 / 3 | B | P8 | KPI definitions | Overview page, top-bar search |
 | P10 | [Live updates and performance](roadmap/P10-realtime-performance.md) | ⬜ Pending | 0 / 4 | B | P9 | Which events update live | Live page updates |
 | P11 | [Production hardening and release](roadmap/P11-production-readiness.md) | ⬜ Pending | 0 / 6 | A + B | P1–P10 | GI5 hosting, SLOs, D09 retention | Controlled live pilot (gates G3/G4) |
-| P12 | [Remaining Phase 1 modules](roadmap/P12-remaining-modules.md) | 🔄 In progress | 0 / 8 | A + B | P11 (or earlier on staging) | One per module | Remaining sidebar pages and workspaces |
+| P12 | [Remaining Phase 1 modules](roadmap/P12-remaining-modules.md) | 🔄 In progress | 1 / 8 | A + B | P11 (or earlier on staging) | One per module | Remaining sidebar pages and workspaces |
 | P13 | [Later-phase platform](roadmap/P13-later-platform.md) | ⬜ Pending | 0 / 5 | — | Each module's master specification | Per module | Platform beyond Phase 1 |
 
 ## Recently completed
 
 Newest first, from the phase files' progress logs.
 
-- 2026-11-27 · [P12](roadmap/P12-remaining-modules.md) · P12.1 · PR #7 (in review) · venue readiness module, screen endpoint, update requests;
+- 2026-11-27 · [P12](roadmap/P12-remaining-modules.md) · P12.1 · PR #7 · venue readiness module, screen endpoint, update requests;
 - 2026-11-26 · [P4](roadmap/P04-event-backbone.md) · P4.1, P4.5 · PR #5 · schema corrections (D-046): database CHECK constraints for values and states, redundant indexes removed, hous…
 - 2026-11-26 · [P4](roadmap/P04-event-backbone.md) · P4.1–P4.5 · PR #5 · outbox, worker, event registry and catalogue, operations commands, activity feed.
 - 2026-11-26 · [P3](roadmap/P03-permissions-audit.md) · P3.1, P3.7 · PR #5 · schema corrections (D-046): database CHECK constraints for values and states, redundant indexes removed, hous…

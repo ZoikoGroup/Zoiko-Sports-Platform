@@ -14,7 +14,7 @@
 
 | ID | Work package | Status | Owner | Depends on | PR / commit |
 |---|---|---|---|---|---|
-| P12.1 | Venue readiness: checklists, evidence records, update requests, Venues & Readiness page | 👀 In review | A | P5, P8 (built ahead on D-047) | PR #7 |
+| P12.1 | Venue readiness: checklists, evidence records, update requests, Venues & Readiness page | ✅ Done | A | P5, P8 (built ahead on D-047) | PR #7 |
 | P12.2 | Event-day exceptions | ⬜ Pending | A | P5, P8 | |
 | P12.3 | Participating Organizations and Team & Access (self-service invitations) | ⬜ Pending | A | P3, P5 | |
 | P12.4 | Reports and audit exports | ⬜ Pending | B | P3.7, P9 | |
@@ -66,7 +66,7 @@ Each module defines its own when it starts; every module must pass the permissio
 
 (One block per module when accepted.)
 
-### P12.1 Venue readiness (in review)
+**Venue readiness (P12.1)**
 
 - 2026-11-27 backend `scripts/ci.sh` (with image build and Trivy scan): ruff, mypy, Django checks, tracker, event catalogue, migrations, OpenAPI zero warnings and matching, **359 tests OK** (2 skipped), **96% coverage**, `pip-audit` clean, image scan clean.
 - 2026-11-27 frontend `scripts/ci.sh`: lint, type check, build, 0 npm vulnerabilities, image scan clean.
@@ -77,4 +77,4 @@ Each module defines its own when it starts; every module must pass the permissio
 
 (One line per merged pull request.)
 
-- 2026-11-27 · P12.1 · PR #7 (in review) · venue readiness module, screen endpoint, update requests; Venues & Readiness page connected (D-047).
+- 2026-11-27 · P12.1 · PR #7 · venue readiness module, screen endpoint, update requests; Venues & Readiness page connected (D-047).

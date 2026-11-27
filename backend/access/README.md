@@ -15,7 +15,9 @@ answers "may this actor do this to that?" for every module.
 | `SharedField` | A field of another organization's record a profile may see; nothing is shared unless listed |
 
 The seed catalogue (migration `0002_seed_catalogue`) is an assumption until the company signs off
-the role catalogue (GP1, D-039). Later phases add their permissions in their own data migrations.
+the role catalogue (GP1, D-039). Later phases add their permissions in their own data migrations:
+`readiness.view` and `readiness.request_update` (competition director, organizer coordinator) come
+from `readiness/migrations/0002_permissions.py` (P12.1, D-047).
 
 ## Public interface (other modules may use)
 

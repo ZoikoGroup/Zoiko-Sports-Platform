@@ -1,10 +1,16 @@
 # Zoiko Sports Platform
 
 Zoiko Sports (Zoiko Tech Inc.) is a global sports operations platform. This
-repository contains its first working slice: the **sign-in experience** for the
-four workspaces — **Organization** (league / event), **Venue** (stadium / arena),
-**Team / Club** and **Individual** (participant / staff) — plus registration,
-email verification and password reset, backed by a session-based Django API.
+repository contains:
+
+* the **sign-in experience** for the four workspaces — **Organization** (league / event),
+  **Venue** (stadium / arena), **Team / Club** and **Individual** (participant / staff) — with
+  registration, email verification, password reset, invitations and workspace switching;
+* the **Organizer workspace** (Overview, Action Center, Competitions & Events, Fixtures &
+  Schedule, Venues & Readiness). **Venues & Readiness runs on live data**; the other pages show
+  their layout with a "Live data isn't connected yet" notice until their backend phase lands;
+* a session-based **Django API** with roles and permissions as data, an append-only audit
+  trail, an event outbox with its worker, an activity feed and venue readiness.
 
 The repository has two top-level folders, plus the GitHub Actions workflow
 (`.github/` is the one agreed exception: GitHub only reads workflows there):
@@ -13,7 +19,7 @@ The repository has two top-level folders, plus the GitHub Actions workflow
 | --- | --- |
 | [`frontend/`](frontend) | React + TypeScript single-page app, its nginx image and the end-to-end tests |
 | [`backend/`](backend) | Django REST API, its Docker image, and the Docker Compose files for the whole application |
-| [`.github/workflows/`](.github/workflows) | `ci.yml` — runs the CI pipelines and browser tests on every push and pull request |
+| [`.github/workflows/`](.github/workflows) | `ci.yml` — runs the CI pipelines and browser tests on every push and pull request; `tracker.yml` — checks each pull request's title and tracker update |
 
 **Project status and roadmap:** start at [`backend/docs/STATUS.md`](backend/docs/STATUS.md).
 What is built, what remains (P0–P13), who is working on what, the decisions behind it and how
@@ -81,6 +87,9 @@ Open **http://localhost:8080/login**. Details in [§5](#5-run-with-docker) and [
                    ├── /                → built React app (static files, SPA fallback)
                    └── /api /admin /static ──proxy──▶ backend container (gunicorn :8000)
                                                        └── Django + DRF ──▶ db container (PostgreSQL 16)
+                                                                              ▲
+                     worker container (manage.py outbox worker) ──────────────┘
+                     delivers events to their consumers (activity feed) and runs housekeeping
 ```
 
 * **Same origin.** The browser only ever talks to one origin (nginx in Docker,
@@ -113,9 +122,15 @@ backend/
   audit/                    append-only audit trail, enforced by a database trigger (P3)
   outbox/                   transactional outbox + event worker (`manage.py outbox worker`) (P4)
   activity/                 activity feed built from events: GET /api/v1/activity/ (P4)
+  competitions/             competitions and their events, hosted by venue organizations (P5.2 subset, D-047)
+  readiness/                venue readiness: checklists (shared / private checks), evidence records,
+                            reviews, update requests; POST /api/v1/venue-readiness/{id}/update-requests/ (P12.1)
+  workspaces/               screen endpoints, one file per page: organizer/venues.py →
+                            GET /api/v1/organizer/venues/ (owns no tables)
   accounts/                 identity: users, sign-in, the active workspace context
-    management/commands/
-      seed_demo.py          fictional demo organizations + accounts
+    management/
+      commands/seed_demo.py fictional demo organizations + accounts
+      demo_readiness.py     the seed's demo competition and venue readiness (five fictional venues)
     migrations/             0003 moved Organization/Membership to organizations/
     emails.py               verification / reset / "already registered" emails
     models.py               User (email login, public UUID), AccountType
@@ -137,6 +152,9 @@ backend/
   platform_core/            platform kernel: shared conventions, no business rules (§9)
     request_context.py      per-request correlation ID (X-Request-ID)
     workspace.py            WorkspaceContext + HasWorkspaceContext permission for module views
+    authorization.py        RequirePermission, Public, deny (404/403): how views ask for a permission
+    events.py               event contracts (EventType) and their registry
+    maintenance.py          housekeeping tasks the worker runs on a schedule
     middleware.py           correlation ID; health probes answered before host validation
     errors.py               the JSON error envelope for every API error (DRF and Django level)
     models.py               base records (public UUID, timestamps, version); idempotency table
@@ -146,7 +164,7 @@ backend/
     filtering.py            strict query-parameter filters
     timeutils.py, fields.py UTC, IANA time zones, daylight-saving-safe conversion; API fields
     openapi.py              shared OpenAPI pieces (error responses, Idempotency-Key header)
-    boundaries.py, checks.py  module boundary rule as a `manage.py check` system check
+    boundaries.py, checks.py  module boundary rule and deny-by-default endpoints as system checks
     app_template/           template for new modules (`startapp --template`)
     tracker.py              validates backend/docs (`manage.py check_tracker`, run in CI)
     logging.py              JSON log formatter + request-ID log filter
@@ -154,6 +172,8 @@ backend/
     management/commands/
       wait_for_db.py        waits for PostgreSQL before migrations
       purge_idempotency_records.py  deletes expired idempotency records
+      check_tracker.py, check_pull_request.py  the tracker checks CI runs
+      event_catalogue.py, maintenance.py        event catalogue; housekeeping now
     tests/                  kernel tests; reference/ is a test-only module using every convention
   config/                   Django settings, URLs, WSGI/ASGI
     database.py             PostgreSQL settings from DATABASE_* variables
@@ -162,7 +182,7 @@ backend/
   Dockerfile                API image (gunicorn, non-root, hash-verified dependencies)
   docker-entrypoint.sh      secret key, wait for database, migrations, optional demo seed
   gunicorn.conf.py          workers, timeouts, JSON access and error logs
-  docker-compose.yml        full stack (frontend + backend + PostgreSQL 16)
+  docker-compose.yml        full stack (frontend + backend + worker + PostgreSQL 16)
   docker-compose.dev.yml    development override (API on 127.0.0.1:8000, database on 127.0.0.1:5433)
   .env.example              every supported setting, documented
   requirements.in / .txt    runtime dependencies / their hash-locked set
@@ -181,6 +201,11 @@ frontend/
       ThemeToggle.*         Light / System / Dark switch
       CardHeader.*, Logo.*, icons/
       form/                 TextField, PasswordField, Checkbox, Button, Alert
+    features/organizer/     the Organizer workspace (own chunk): layout/ (sidebar, top bar),
+                            overview/, actioncenter/, competitions/, fixtures/, venues/,
+                            components/ (data states, dialogs, menus, selects),
+                            api/ (endpoints.ts on/off switch, organizerApi.ts, types.ts,
+                            venuesMapping.ts), organizer.css
     theme/theme.ts          theme preference, persistence, system sync
     config/siteLinks.ts     footer destinations
     pages/                  Login, Register, ForgotPassword, ResetPassword, VerifyEmail,
@@ -189,7 +214,8 @@ frontend/
       brand/                logo artwork extracted from the official images
       backgrounds/          stadium plate (desktop), stage (mobile), ambient fill
     index.css               design tokens + light/dark themes
-  e2e/                      Playwright suite, isolated backend launcher, warm-up, teardown
+  e2e/                      Playwright suite (auth.spec.ts, organizer/ with one spec per page),
+                            isolated backend launcher, warm-up, teardown
   scripts/ci.sh             frontend CI pipeline (lint → build → npm audit → image scan)
   Dockerfile, nginx.conf    production image (nginx mainline, unprivileged)
   playwright.config.ts, vite.config.ts, tsconfig*.json
@@ -245,7 +271,7 @@ cp .env.example .env               # PowerShell: Copy-Item .env.example .env
 # 4. Build the images and start the stack in the background.
 docker compose up -d --build
 
-# 5. Check all three services (db, backend, frontend) report "healthy".
+# 5. Check all four services (db, backend, worker, frontend) report "healthy".
 docker compose ps
 ```
 
@@ -259,7 +285,14 @@ With demo seeding enabled, these fictional accounts all use your `ZS_DEMO_PASSWO
 | `organizer@zoikosports.test` | Organization, Individual |
 | `venue@zoikosports.test` | Venue, Individual |
 | `club@zoikosports.test` | Team / Club, Individual |
+| `clubb@zoikosports.test` | Team / Club (Club B), Individual |
+| `clubc@zoikosports.test` | Team / Club (Club C, never invited to anything), Individual |
 | `individual@zoikosports.test` | Individual |
+
+The seed also creates Riverside Invitational's demo competition at five fictional venues
+(Northfield Arena, Harbour Point Stadium, Lakeside Park, Southern Cross Ground, Bayfront Arena)
+with their readiness checklists, so **Venues & Readiness** shows every status. Times are set
+relative to when the seed runs; re-running it creates nothing twice.
 
 Without seeding, create an account at **/register**; the verification link is
 printed in the backend log (see *Inspect* below).
@@ -491,14 +524,22 @@ is optional and has a safe default.
   what is allowed (each fixture lists its `allowedActions`) and refuses a
   publication if the published version moved since the proposal.
   `?fixture=<id>`, `?new=fixture`, `?competition=<id>` and
-  `?approvals=fixture` open or filter directly). The other sidebar modules
-  render a "coming in a later build" page inside the same shell.
+  `?approvals=fixture` open or filter directly) and Venues & Readiness
+  (`/organizer/venues`: summary cards, the readiness queue with status tabs and
+  competition / region / status filters, Needs Attention, today's venue activity,
+  the regional snapshot and a details panel with the venue's shared checks and
+  "Request an update"; `?status=`, `?competition=` and `?venue=<id>` open or filter
+  directly). The other sidebar modules render a "coming in a later build" page
+  inside the same shell.
 * **Organizer data** (`frontend/src/features/organizer/api/`): there is no
   sample data. Pages read and write only through `organizerApi.ts`, which
-  runs the operations listed in `endpoints.ts`. Every entry there is `null`
-  until the API specification defines it, so pages show their layout with
-  "—" figures, empty lists and a "Live data isn't connected yet" notice, and
-  form submissions report that saving is not available. `types.ts` holds the
+  runs the operations listed in `endpoints.ts`. An entry is filled in when its
+  backend phase delivers it: today **`venues` and `requestReadinessUpdate`** are
+  connected (P12.1) and the other 11 are `null`. A page whose entry is `null`
+  shows its layout with "—" figures, empty lists and a "Live data isn't
+  connected yet" notice, and its form submissions report that saving is not
+  available. API responses in the backend's snake_case are mapped onto the
+  view models in `organizerApi.ts` (Venues: `venuesMapping.ts`). `types.ts` holds the
   view models the screens render (map the agreed API responses onto them in
   `organizerApi.ts`); `empty.ts` holds the "no data" versions. Loading,
   error, empty and not-connected states come from `components/DataState.tsx`
@@ -506,6 +547,9 @@ is optional and has a safe default.
 * **API client** (`frontend/src/api/client.ts`): JSON over `fetch`, same-origin
   cookies, reads the `csrftoken` cookie before every unsafe request (Django
   rotates it on sign-in) and turns the backend error envelope into an `ApiError`.
+  Creates send a fresh `Idempotency-Key` per submission (`newIdempotencyKey()`).
+  Actions are shown only when the session's `permissions` include them
+  (`hasPermission` in `auth/roles.ts`); the server enforces every rule regardless.
 * **Session state** (`frontend/src/auth/AuthContext.tsx`): loads `/session/` and
   `/config/` once, exposes `login` / `logout`.
 * **Assets:** the logo and stadium images are derived from the official Zoiko
@@ -594,6 +638,19 @@ invitation step is written to the append-only audit trail (`audit` module).
 **Activity feed** — `GET /api/v1/activity/`: readable entries about the acting
 organization, newest first, cursor-paginated; needs a workspace whose role grants
 `activity.view`. Built by the worker from events (`outbox` and `activity` modules).
+
+**Venue readiness** (P12.1; provisional model in decision D-047):
+
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| GET | `/api/v1/organizer/venues/` | The Venues & Readiness page in one read: `summary`, `venues` (one per venue and event, with its shared checks), `attention`, `activity` (today, in each event's time zone), `regions`. Needs `readiness.view`; only the acting organizer's events; only checks the venue shared |
+| POST | `/api/v1/venue-readiness/<id>/update-requests/` | `{message}` (1–500 characters) with an `Idempotency-Key`: asks the venue to update its readiness; the venue sees it in its activity feed. Needs `readiness.request_update`; another organizer's readiness answers `404` |
+
+Data model: `Competition` (owned by an organizer) and `Event` (hosted by a venue organization,
+with city, country, region and IANA time zone) in `competitions`; `VenueReadiness`,
+`ReadinessCheck` (open, submitted, accepted, changes requested; shared or private; critical or
+not), `ReadinessEvidence` and `UpdateRequest` in `readiness`. Evidence files (upload, virus
+scanning) come with P12.8.
 
 **Operator commands** (until the Internal Administration product exists), run
 from `backend/` (in Docker: `docker compose exec backend python manage.py ...`):
@@ -800,7 +857,7 @@ proportions at every resolution:
 Linux/macOS shell; needs Docker and the virtualenv from §6):
 
 ```sh
-backend/scripts/ci.sh                 # everything (about 4 minutes)
+backend/scripts/ci.sh                 # everything (about 6 minutes)
 CI_SKIP_IMAGE=1 backend/scripts/ci.sh # without the image build and scan
 ```
 
@@ -810,8 +867,9 @@ Steps, each of which must pass:
 2. mypy type check (Django and DRF plugins)
 3. a throwaway PostgreSQL 16 container with a random password (or the database
    in `DATABASE_*` when `DATABASE_HOST` is set, e.g. a CI service container)
-4. Django system checks (including the module boundary rule), and a check that
-   migrations match the models
+4. Django system checks (including the module boundary rule and deny-by-default
+   endpoints), the implementation tracker (`check_tracker`), the event catalogue,
+   and a check that migrations match the models
 5. the OpenAPI schema generates with zero warnings and matches `openapi.yaml`
 6. all backend tests with branch coverage (must stay at 85% or more)
 7. pip-audit on both hash-locked requirement files (no known vulnerabilities)
@@ -830,10 +888,12 @@ Steps: oxlint; TypeScript type check and production build; `npm audit`
 (fails on fixable HIGH or CRITICAL vulnerabilities — the image upgrades its
 Alpine packages at build time for this reason).
 
-**GitHub Actions** (`.github/workflows/ci.yml`) runs both pipelines as the
-jobs `backend` and `frontend` on every push and on pull requests to `main`;
-`main` should require both to pass before merging. The end-to-end suite is
-not part of CI yet; run it locally before merging larger changes.
+**GitHub Actions** (`.github/workflows/ci.yml`) runs both pipelines and the
+end-to-end suite as the jobs `backend`, `frontend` and `e2e` on every push and
+on pull requests to `main` (a browser test may retry once there). `tracker.yml`
+adds the job `tracker` on pull requests: the title must name its work package
+and code must arrive with its tracker update (`backend/docs/handover.md`).
+`main` should require all four to pass before merging.
 
 The tests alone, against the development database (§6, Option B):
 
@@ -851,7 +911,11 @@ version conflicts (including two truly simultaneous edits), idempotent creates
 (including ten simultaneous duplicates), cursor pagination over 1,000 rows that
 share a timestamp (forwards and backwards, constant query count), strict
 filters, IANA time zones and daylight-saving gaps and overlaps in four zones,
-the OpenAPI contract, the module boundary rule and the module template.
+the OpenAPI contract, the module boundary rule and the module template; every
+role against every endpoint on the golden event (`access/tests/test_permission_matrix.py`),
+the audit trail, the outbox worker (exactly once, retries, lag), the activity
+feed, and venue readiness (states, shared-only reads, statuses, today's activity
+across time zones, update requests).
 
 **Changing dependencies:** edit `requirements.in` (runtime) or
 `requirements-dev.in` (tools), then regenerate the locks with the command at the
@@ -878,7 +942,11 @@ and mobile (390 × 844):
 * light, dark, manual and live system theme switching, persistence and
   first-paint theme;
 * the theme toggle: all three options visible, mouse, touch and keyboard,
-  44px touch targets, and no layout shift.
+  44px touch targets, and no layout shift;
+* the Organizer workspace, one spec per page in `e2e/organizer/`: pages without a
+  backend yet show their "not connected" state and invent nothing; Venues &
+  Readiness runs on the seeded data (totals match the queue, filters, attention
+  items, shared-only details, request an update).
 
 It uses the installed Microsoft Edge; set `E2E_BROWSER_CHANNEL=chrome` for Chrome.
 

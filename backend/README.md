@@ -1,8 +1,11 @@
 # Zoiko Sports — backend
 
-Django 5.2 + DRF REST API on PostgreSQL 16 (sign-in, registration, email
-verification, password reset, health probes), plus the Docker Compose files for
-the whole application.
+Django 5.2 + DRF REST API on PostgreSQL 16, plus the Docker Compose files for the whole
+application: identity and workspaces, roles and permissions, the audit trail, the event outbox
+and its worker, the activity feed, and venue readiness (the Organizer's Venues & Readiness page).
+
+What each module does: its own `README.md`. What is built and what remains:
+[`docs/STATUS.md`](docs/STATUS.md).
 
 **Full documentation** — architecture, setup, environment variables, API,
 authentication workflows, testing and troubleshooting — is in the
@@ -16,13 +19,13 @@ Run from this folder. First time: copy `.env.example` to `.env` and set
 ```sh
 cp .env.example .env          # PowerShell: Copy-Item .env.example .env
 
-# Full stack (nginx + API + PostgreSQL) → http://localhost:8080/login
+# Full stack (nginx + API + event worker + PostgreSQL) → http://localhost:8080/login
 docker compose up -d --build
 
 # Development: API + database, for `npm run dev` in ../frontend → http://localhost:5173/login
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d backend
 
-docker compose ps                  # status and health (db, backend, frontend)
+docker compose ps                  # status and health (db, backend, worker, frontend)
 docker compose logs -f backend     # API log, JSON (verification / reset emails appear here)
 docker compose down                # add -v to also delete the database volume
 ```

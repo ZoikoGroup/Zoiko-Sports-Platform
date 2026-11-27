@@ -36,7 +36,7 @@ The demo seed (`backend/accounts/management/commands/seed_demo.py`, password fro
 | P6 | A kick-off moves from 12:15 to 12:25: proposed, approved, published as version 2; version 1 stays readable |
 | P7 | Clubs A and B are notified; delivered is not acknowledged; a club revoked after queueing gets nothing |
 | P8 | The approval and the outstanding acknowledgments appear in the Action Centre; totals equal lists |
-| P12.1 👀 | Northfield's 16 readiness checks: 14 shared, 2 not shared; Riverside sees and counts only the 14 (`readiness/tests/test_readiness.py`) |
+| P12.1 ✅ | Northfield's 16 readiness checks: 14 shared, 2 not shared; Riverside sees and counts only the 14 (`readiness/tests/test_readiness.py`) |
 | P12.2 | The turnstile incident on event day: opened, triaged, resolved |
 
 ## Rules for seed data
