@@ -26,6 +26,7 @@
 | P11.3 | Managed PostgreSQL with point-in-time recovery; restore drill | ⬜ Pending | B | GI5 | |
 | P11.4 | Full monitoring: tracing, metrics, error tracking, alerts (outbox lag, dead letters) | ⬜ Pending | B | P4 | |
 | P11.5 | Staging and production; zero-downtime migrations, rollback, runbooks, manual fallback | ⬜ Pending | B | GI5 | |
+| P11.6 | Production database roles: a migration owner and an application role that cannot drop the audit trigger or truncate tables | ⬜ Pending | B | GI5 | |
 
 ### P11.1 Security review
 - OWASP ASVS 5.0 and API Top 10 mapped to every route; the permission matrix (P3.8) proves coverage.
@@ -38,6 +39,9 @@
 
 ### P11.4 Monitoring
 - Business signals too: approvals waiting, acknowledgments outstanding, failed notifications.
+
+### P11.6 Database roles
+- Found by the schema audit (D-046): today the application's database user owns the tables, so it could remove the audit trail's append-only trigger. Production uses a separate owner for migrations.
 
 ### P11.5 Environments
 - Until hosting is chosen, the Docker stack is the interim staging (D-021).

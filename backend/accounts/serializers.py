@@ -89,7 +89,8 @@ class WorkspaceContextSerializer(serializers.Serializer):
     id = serializers.CharField(help_text="`individual`, or the organization's ID.")
     account_type = serializers.ChoiceField(choices=AccountType.choices)
     organization = ContextOrganizationSerializer(allow_null=True)
-    role = serializers.CharField(allow_null=True)
+    role = serializers.CharField(allow_null=True, help_text="Role code from the catalogue, e.g. venue_manager.")
+    role_name = serializers.CharField(allow_null=True, help_text="The role's display name, e.g. Venue manager.")
 
 
 CONTEXT_STATUSES = [
@@ -110,6 +111,11 @@ class SessionSerializer(serializers.Serializer):
     context_status = serializers.ChoiceField(choices=CONTEXT_STATUSES, required=False)
     context_ended = serializers.BooleanField(
         required=False, help_text="The previous context stopped being valid (membership or organization ended)."
+    )
+    permissions = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        help_text="Permission codes the active context's role grants (empty without an organization context).",
     )
 
 

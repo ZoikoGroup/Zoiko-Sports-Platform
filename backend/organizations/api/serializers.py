@@ -24,6 +24,7 @@ class InvitationPreviewSerializer(serializers.Serializer):
     organization = InvitationOrganizationSerializer()
     account_type = serializers.CharField(help_text="The workspace the invitation opens: organization, venue or club.")
     role = serializers.CharField()
+    role_name = serializers.CharField(help_text="The role's display name from the catalogue.")
     email = serializers.CharField(help_text="The invited address, partly masked.")
     expires_at = serializers.DateTimeField()
     state = serializers.ChoiceField(choices=INVITATION_STATES)

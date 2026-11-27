@@ -109,6 +109,10 @@ Open **http://localhost:8080/login**. Details in [§5](#5-run-with-docker) and [
 backend/
   docs/                     project status, roadmap P0–P13, decisions, handover — start at STATUS.md
                             (every module also has a README.md describing itself)
+  access/                   role and permission catalogue (data) + the policy engine (P3)
+  audit/                    append-only audit trail, enforced by a database trigger (P3)
+  outbox/                   transactional outbox + event worker (`manage.py outbox worker`) (P4)
+  activity/                 activity feed built from events: GET /api/v1/activity/ (P4)
   accounts/                 identity: users, sign-in, the active workspace context
     management/commands/
       seed_demo.py          fictional demo organizations + accounts
@@ -306,8 +310,13 @@ printed in the backend log (see *Inspect* below).
    optionally seeds demo data, then starts gunicorn (3 workers, JSON logs) as an
    unprivileged user. Its health check is the readiness probe
    `/api/v1/health/ready/`.
-3. **frontend** — starts only after the backend is healthy; nginx serves the
-   app on port 8080 and proxies `/api`, `/admin` and `/static` to the backend.
+3. **worker** — starts after the backend is healthy (it reuses the migrated
+   database and the secret key on the shared volume); runs `manage.py outbox
+   worker`, delivering events to their consumers. Healthy while its heartbeat
+   file is fresh.
+4. **frontend** — starts only after the backend is healthy; nginx serves the
+   app on port 8080 and proxies `/api`, `/admin` and `/static` to the backend
+   (Django's admin answers only when `DJANGO_ADMIN_ENABLED=true`).
 
 ## 6. Run for development
 
@@ -437,10 +446,18 @@ is optional and has a safe default.
 | `SESSION_REMEMBER_DAYS` | `14` | "Keep me signed in" session lifetime in days (1–90) |
 | `INVITATION_TTL_DAYS` | `7` | Invitation link lifetime in days (1–30) |
 | `INVITATION_THROTTLE_RATE` | `30/min` | Rate limit for invitation preview and accept |
+| `OUTBOX_POLL_INTERVAL_MS` | `500` | How often the idle event worker looks for due deliveries |
+| `OUTBOX_BATCH_SIZE` | `100` | Deliveries per worker loop |
+| `OUTBOX_MAX_ATTEMPTS` | `8` | Attempts before a delivery is dead (replayable) |
+| `OUTBOX_RETRY_BASE_SECONDS` / `OUTBOX_RETRY_MAX_SECONDS` | `2` / `600` | Retry backoff start and cap |
+| `OUTBOX_RETENTION_DAYS` | `30` | Days fully delivered events are kept |
+| `MAINTENANCE_INTERVAL_HOURS` | `6` | How often the worker removes expired sessions, idempotency records and old delivered events (0 = off) |
+| `DJANGO_ADMIN_ENABLED` | `DJANGO_DEBUG` | Mount Django's admin (Zoiko staff only) |
+| `DJANGO_ADMIN_PATH` | `admin/` | Where it is mounted (outside `/api/`) |
 | `DJANGO_EMAIL_*`, `AUTH_*` | | As in the table above |
 
 `API_PAGE_SIZE`, `API_MAX_PAGE_SIZE`, `IDEMPOTENCY_TTL_HOURS`, `SESSION_REMEMBER_DAYS`,
-`INVITATION_TTL_DAYS` and `INVITATION_THROTTLE_RATE` are also passed through by the Docker stack (set them in `backend/.env`).
+`INVITATION_TTL_DAYS`, `INVITATION_THROTTLE_RATE`, the `OUTBOX_*` values, `MAINTENANCE_INTERVAL_HOURS` and `DJANGO_ADMIN_*` are also passed through by the Docker stack (set them in `backend/.env`).
 
 ### Frontend (build / dev server)
 
@@ -569,8 +586,14 @@ a URL.
 
 Data model: `User` (email is the username), `Organization` (`organizer`,
 `venue`, `club`; status `pending`, `active` or `suspended`), `Membership` (user
-and organization with role, status and validity window) and `Invitation`
+and organization with a catalogue role, status and validity window) and `Invitation`
 (single-use, expiring, token stored as a SHA-256 hash), stored in PostgreSQL 16.
+Roles and permissions are data (`access` module); every sign-in, switch and
+invitation step is written to the append-only audit trail (`audit` module).
+
+**Activity feed** — `GET /api/v1/activity/`: readable entries about the acting
+organization, newest first, cursor-paginated; needs a workspace whose role grants
+`activity.view`. Built by the worker from events (`outbox` and `activity` modules).
 
 **Operator commands** (until the Internal Administration product exists), run
 from `backend/` (in Docker: `docker compose exec backend python manage.py ...`):
@@ -583,6 +606,12 @@ from `backend/` (in Docker: `docker compose exec backend python manage.py ...`):
 | `organizations invite <id> --email ... --role ... [--expires-days N]` | Emails a single-use invitation (the token is never printed); re-inviting replaces the earlier link |
 | `organizations revoke-invitation <invitation id>` | Revokes a pending invitation |
 | `organizations remove-member <id> --email ... [--suspend]` | Revokes (or suspends) a membership; effective on the member's next request |
+| `access roles` / `access grant <role> <permission>` / `access revoke ...` | The role catalogue (roles and permissions are data); changes are audited and apply on members' next request |
+| `audit [--limit N] [--action ...] [--actor <uuid>] [--organization <uuid>]` | Newest entries of the append-only audit trail |
+| `outbox status` | Event queue: pending, dead letters by consumer, delivery lag p50/p95 |
+| `outbox replay [--consumer ...] [--event <uuid>] [--include-done]` / `outbox backfill <consumer>` / `outbox purge --older-than-days N` | Requeue dead deliveries; give a new consumer past events; delete old delivered events |
+| `outbox worker [--once]` | The event worker (the `worker` container runs it); `--once` delivers what is due and exits |
+| `maintenance [--list]` | Housekeeping now: expired sessions, idempotency records, old delivered events (the worker also runs it every `MAINTENANCE_INTERVAL_HOURS`) |
 
 **Health probes** — base path `/api/v1/health/`; no authentication, never
 cached, `GET`/`HEAD` only. Bodies name each check and its state; failure

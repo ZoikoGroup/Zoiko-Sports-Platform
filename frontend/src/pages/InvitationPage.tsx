@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { authApi, type InvitationPreview } from '../api/auth'
 import { ApiError } from '../api/client'
 import { useAuth } from '../auth/AuthContext'
-import { contextLabel, homePathFor, humanizeRole } from '../auth/roles'
+import { contextLabel, homePathFor } from '../auth/roles'
 import { CardHeader } from '../components/CardHeader'
 import { Alert } from '../components/form/Alert'
 import { Button } from '../components/form/Button'
@@ -42,7 +42,7 @@ function forgetToken() {
 }
 
 const workspaceName = (preview: InvitationPreview) =>
-  contextLabel({ id: '', account_type: preview.account_type, role: null, organization: { id: '', ...preview.organization } })
+  contextLabel({ id: '', account_type: preview.account_type, role: null, role_name: null, organization: { id: '', ...preview.organization } })
 
 export function InvitationPage() {
   const { session, acceptInvitation, logout } = useAuth()
@@ -108,7 +108,7 @@ export function InvitationPage() {
           </div>
           <div>
             <dt>Role</dt>
-            <dd>{humanizeRole(preview.role)}</dd>
+            <dd>{preview.role_name}</dd>
           </div>
           <div>
             <dt>Sent to</dt>

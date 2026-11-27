@@ -5,6 +5,7 @@ same settings module serves local, staging and production deployments.
 """
 
 import os
+import re
 import sys
 from datetime import timedelta
 from pathlib import Path
@@ -72,8 +73,12 @@ INSTALLED_APPS = [
     "rest_framework",
     "drf_spectacular",
     "platform_core",
+    "audit",
+    "access",
     "accounts",
     "organizations",
+    "outbox",
+    "activity",
 ]
 
 # `manage.py test` (also under coverage) adds the kernel's reference module: a
@@ -213,6 +218,33 @@ API_MAX_PAGE_SIZE = env_int("API_MAX_PAGE_SIZE", 100, minimum=1, maximum=1000)
 API_PAGE_SIZE = env_int("API_PAGE_SIZE", min(25, API_MAX_PAGE_SIZE), minimum=1, maximum=API_MAX_PAGE_SIZE)
 # How long a stored Idempotency-Key outcome is replayed (platform_core.idempotency).
 IDEMPOTENCY_TTL = timedelta(hours=env_int("IDEMPOTENCY_TTL_HOURS", 24, minimum=1, maximum=24 * 30))
+
+# --- Event backbone (outbox module, P4) ---------------------------------------
+# The worker (`manage.py outbox worker`) polls for due deliveries this often when idle.
+OUTBOX_POLL_INTERVAL_SECONDS = env_int("OUTBOX_POLL_INTERVAL_MS", 500, minimum=50, maximum=60_000) / 1000
+# Deliveries processed per loop before the worker checks for a stop signal.
+OUTBOX_BATCH_SIZE = env_int("OUTBOX_BATCH_SIZE", 100, minimum=1, maximum=10_000)
+# A failing delivery is retried after 2, 4, 8 … seconds (capped), then marked dead.
+OUTBOX_MAX_ATTEMPTS = env_int("OUTBOX_MAX_ATTEMPTS", 8, minimum=1, maximum=100)
+OUTBOX_RETRY_BASE_SECONDS = env_int("OUTBOX_RETRY_BASE_SECONDS", 2, minimum=1, maximum=3600)
+OUTBOX_RETRY_MAX_SECONDS = env_int("OUTBOX_RETRY_MAX_SECONDS", 600, minimum=1, maximum=86_400)
+# Touched on every loop; the worker container's health check reads its age.
+OUTBOX_HEARTBEAT_FILE = os.environ.get("OUTBOX_HEARTBEAT_FILE", "")
+# Fully delivered events are kept this many days, then purged by the housekeeping.
+OUTBOX_RETENTION_DAYS = env_int("OUTBOX_RETENTION_DAYS", 30, minimum=1, maximum=3650)
+
+# --- Housekeeping (platform_core.maintenance) ------------------------------------
+# The worker removes expired sessions, idempotency records and old delivered events
+# this often (hours); 0 turns the schedule off (run `manage.py maintenance` instead).
+MAINTENANCE_INTERVAL_HOURS = env_int("MAINTENANCE_INTERVAL_HOURS", 6, minimum=0, maximum=24 * 7)
+
+# --- Django admin (P3.9) -------------------------------------------------------
+# Zoiko staff tooling only, never the customer-facing Internal Administration
+# product. Off unless enabled (on by default with DEBUG); staff accounts only.
+ADMIN_ENABLED = env_bool("DJANGO_ADMIN_ENABLED", DEBUG)
+ADMIN_PATH = env_str("DJANGO_ADMIN_PATH", "admin/").strip("/") + "/"
+if not re.fullmatch(r"[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*/", ADMIN_PATH) or ADMIN_PATH.startswith("api/"):
+    raise ImproperlyConfigured("DJANGO_ADMIN_PATH must be a plain path such as 'staff-admin/', outside /api/.")
 
 # --- Organizations and invitations (organizations module) -------------------
 # How long an emailed invitation link stays valid.

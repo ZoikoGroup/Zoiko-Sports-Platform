@@ -1,11 +1,12 @@
 """Module boundary rule, enforced as a Django system check (platform_core.checks).
 
 Every backend module (a local Django app) keeps its tables and HTTP layer to
-itself. Another module may import only its `services` (writes) and `selectors`
-(reads):
+itself. Another module may import only its `services` (writes), `selectors`
+(reads) and `events` (the event contracts it publishes, P4):
 
     from competitions.services import create_competition     # allowed
     from competitions.selectors import competitions_for       # allowed
+    from competitions.events import COMPETITION_CREATED       # allowed
     from competitions.models import Competition               # violation
     from competitions.api.views import CompetitionList        # violation
 
@@ -20,7 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 KERNEL = "platform_core"
-PUBLIC_SUBMODULES = frozenset({"services", "selectors"})
+PUBLIC_SUBMODULES = frozenset({"services", "selectors", "events"})
 _EXEMPT_DIRS = frozenset({"tests", "migrations", "app_template"})
 
 
@@ -37,7 +38,7 @@ class Violation:
             return f"{self.path}:{self.line}: the platform kernel imports module code ({self.imported})."
         return (
             f"{self.path}:{self.line}: {self.importer} imports {self.imported}; "
-            "other modules may use only their services and selectors."
+            "other modules may use only their services, selectors and events."
         )
 
 

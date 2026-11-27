@@ -9,7 +9,8 @@ contexts a person may act in right now.
 | Model | Notes |
 |---|---|
 | `Organization` | Kind organizer / venue / club; status pending → active → suspended; `verified_at`. New organizations start pending (D-025) |
-| `Membership` | User × organization with a free-text `role` (becomes a link to `access.Role` in P3.1), status invited / active / suspended / revoked, optional validity window |
+| `Membership` | User × organization with a `role` from the access catalogue (stored by its code), status active / suspended / revoked, optional validity window |
+| Database rules | Allowed kinds and statuses; an active organization is verified; a validity window ends after it starts; invitation emails are lower case; accepted or revoked invitations record when (D-046) |
 | `Invitation` | Organization, email, role, `token_hash` (SHA-256; the token itself is never stored), status pending / accepted / revoked, `expires_at`. At most one pending invitation per organization and email |
 
 ## Public interface (other modules may use)
@@ -64,5 +65,4 @@ fragment, which browsers never send to servers.
 ## Known gaps
 
 - Self-service invitations (P2.7 → P12.3).
-- Roles are free text until P3.1.
-- Club B and the uninvited Club C are not seeded yet (P3.8).
+- No `version` column yet on organizations and memberships: added with the first API that edits them (P12.3, D-046).

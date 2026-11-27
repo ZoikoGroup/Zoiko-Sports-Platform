@@ -60,7 +60,7 @@ class InvitationIssueTests(GoldenEventTestCase):
 
     def test_reinviting_replaces_the_earlier_link(self):
         first, first_token = self.invite()
-        second, _ = self.invite(role="club_manager")
+        second, _ = self.invite(role="organization_access_manager")
         first.refresh_from_db()
         self.assertEqual(first.status, Invitation.Status.REVOKED)
         self.assertEqual(Invitation.objects.filter(status=Invitation.Status.PENDING).get(), second)
@@ -76,7 +76,7 @@ class InvitationIssueTests(GoldenEventTestCase):
                 Organization.objects.filter(pk=organization.pk).update(status=Organization.Status.SUSPENDED)
                 organization.refresh_from_db()
             with self.subTest(status=organization.status), self.assertRaises(ApiError) as raised:
-                services.create_invitation(organization=organization, email="x@example.com", role="member")
+                services.create_invitation(organization=organization, email="x@example.com", role="club_coordinator")
             self.assertEqual(raised.exception.code, "organization_unavailable")
 
     def test_role_and_email_are_validated(self):
@@ -173,13 +173,13 @@ class InvitationApiTests(GoldenEventTestCase):
         self.assertEqual((response.status_code, response.data["error"]["code"]), (409, "already_member"))
 
     def test_a_removed_member_can_be_invited_back_with_the_new_role(self):
-        user = make_user("casey@example.com", self.club, role="volunteer")
+        user = make_user("casey@example.com", self.club, role="organization_access_manager")
         Membership.objects.filter(user=user).update(status=Membership.Status.REVOKED, valid_to=timezone.now())
         self.login("casey@example.com")
         self.assertEqual(self.accept().status_code, 200)
         membership = Membership.objects.get(user=user, organization=self.club)
         self.assertEqual(
-            (membership.status, membership.role, membership.valid_to), ("active", "club_coordinator", None)
+            (membership.status, membership.role_id, membership.valid_to), ("active", "club_coordinator", None)
         )
 
     def test_accepting_rotates_the_session(self):
@@ -191,6 +191,9 @@ class InvitationApiTests(GoldenEventTestCase):
 
 
 class InvitationConcurrencyTests(ApiClientMixin, TransactionTestCase):
+    # Restore the migrated data (the role catalogue) that TransactionTestCase's flush removes.
+    serialized_rollback = True
+
     """Real concurrent transactions on PostgreSQL."""
 
     def setUp(self):
@@ -232,7 +235,8 @@ class InvitationConcurrencyTests(ApiClientMixin, TransactionTestCase):
 
     def test_simultaneous_invitations_to_one_address_leave_one_valid_link(self):
         results = self.race(
-            [lambda: services.create_invitation(organization=self.club, email="x@example.com", role="member")] * 4
+            [lambda: services.create_invitation(organization=self.club, email="x@example.com", role="club_coordinator")]
+            * 4
         )
         self.assertTrue(all(isinstance(r, tuple) for r in results), results)
         pending = Invitation.objects.get(status=Invitation.Status.PENDING)  # exactly one

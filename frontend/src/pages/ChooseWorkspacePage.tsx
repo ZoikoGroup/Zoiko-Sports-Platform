@@ -5,7 +5,7 @@ import type { SignedInSession } from '../api/auth'
 import { ApiError } from '../api/client'
 import { accountTypeLabel } from '../auth/accountTypes'
 import { useAuth } from '../auth/AuthContext'
-import { contextLabel, homePathFor, humanizeRole } from '../auth/roles'
+import { contextLabel, homePathFor, roleLabel } from '../auth/roles'
 import { useSwitchWorkspace } from '../auth/useSwitchWorkspace'
 import { CardHeader } from '../components/CardHeader'
 import { Alert } from '../components/form/Alert'
@@ -87,7 +87,7 @@ export function ChooseWorkspacePage() {
                 >
                   <span className="workspace-choice__text">
                     <span className="workspace-choice__name">{contextLabel(context)}</span>
-                    {context.role && <span className="workspace-choice__role">{humanizeRole(context.role)}</span>}
+                    {context.role && <span className="workspace-choice__role">{roleLabel(context)}</span>}
                   </span>
                   <ArrowRight size={20} aria-hidden="true" />
                 </button>

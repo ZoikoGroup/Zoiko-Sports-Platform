@@ -10,9 +10,15 @@ password reset, and which workspace context the session is acting for.
 | Model | Notes |
 |---|---|
 | `User` | Email is the login; `public_id` (UUID) is the ID in the API (D-018); `has_individual_profile` gives the Individual workspace. Passwords hashed with Argon2id (D-029) |
+| `User` rules | Email stored in lower case (`user_email_lowercase`) and unique whatever the capitals (`user_email_unique_any_case`, also the index for case-insensitive lookups) (D-046) |
 | `AccountType` | The four sign-in tiles (organization, venue, club, individual); a preference only (D-030) |
 
 Organizations and memberships live in the [`organizations`](../organizations/README.md) module.
+
+Django's own `auth_group`, `auth_permission`, `accounts_user_groups` and
+`accounts_user_user_permissions` tables (from `PermissionsMixin`) serve only Django's staff
+admin. The product's roles and permissions are the [`access`](../access/README.md) catalogue;
+granting something in Django's tables changes nothing in the product (D-046).
 
 ## Public interface (other modules may use)
 

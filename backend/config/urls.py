@@ -3,12 +3,16 @@ from django.contrib import admin
 from django.urls import URLPattern, URLResolver, include, path
 
 urlpatterns: list[URLPattern | URLResolver] = [
-    path("admin/", admin.site.urls),
     path("api/v1/auth/", include("accounts.urls")),
     path("api/v1/me/", include("accounts.me_urls")),
     path("api/v1/invitations/", include("organizations.api.urls")),
+    path("api/v1/activity/", include("activity.api.urls")),
     path("api/v1/health/", include("platform_core.urls")),
 ]
+
+if settings.ADMIN_ENABLED:
+    # Zoiko staff only (is_staff), at a configurable path; off by default outside development (P3.9).
+    urlpatterns.append(path(settings.ADMIN_PATH, admin.site.urls))
 
 if settings.DEBUG:
     # The OpenAPI schema, for local tooling only; production does not publish its API map.

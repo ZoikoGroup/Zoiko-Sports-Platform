@@ -21,6 +21,7 @@ from django.db.migrations.executor import MigrationExecutor
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.views.decorators.cache import never_cache
 
+from .authorization import public_endpoint
 from .errors import method_not_allowed
 
 logger = logging.getLogger(__name__)
@@ -75,12 +76,14 @@ def _check_migrations() -> CheckState:
     return "ok"
 
 
+@public_endpoint
 @never_cache
 @require_safe
 def live(request: HttpRequest) -> JsonResponse:
     return JsonResponse({"status": "ok"})
 
 
+@public_endpoint
 @never_cache
 @require_safe
 def ready(request: HttpRequest) -> JsonResponse:

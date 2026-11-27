@@ -6,4 +6,6 @@
 - Creates exposed through the API are made idempotent in the view with
   platform_core.idempotency.idempotent.
 - Other modules call these functions; they never import this module's models.
+- Each write records its audit entry (audit.services.record) and publishes its
+  event (outbox.services.publish) inside the same transaction as the change.
 """

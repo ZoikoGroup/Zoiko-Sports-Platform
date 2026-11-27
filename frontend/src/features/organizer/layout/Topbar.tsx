@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useTheme, type ThemePreference } from '../../../theme/theme'
 import type { RegionId } from '../api/types'
 import { Menu } from '../components/Menu'
-import { formatRelativeDay, humanizeRole, initials, REGION_LABELS, SPORT_LABELS } from '../format'
+import { formatRelativeDay, initials, REGION_LABELS, SPORT_LABELS } from '../format'
 import { ALL_ITEMS, organizerPath } from '../navigation'
 import type { OrganizerShell } from '../shellContext'
 import { useOrganizerIdentity, useSignOut } from './useWorkspaceSwitch'
@@ -277,7 +277,7 @@ export function Topbar({ shell, onOpenNavigation }: TopbarProps) {
                 <span className="org-user__name" data-testid="organizer-user-name">
                   {identity.name}
                 </span>
-                <span className="org-user__role">{humanizeRole(identity.role)}</span>
+                <span className="org-user__role">{identity.roleName}</span>
               </span>
               <ChevronDown className="org-user__chevron" size={20} aria-hidden="true" />
             </>
@@ -289,7 +289,7 @@ export function Topbar({ shell, onOpenNavigation }: TopbarProps) {
                 <strong>{identity.name}</strong>
                 <span>{identity.email}</span>
                 <span>
-                  {humanizeRole(identity.role)} · {identity.organization}
+                  {identity.roleName} · {identity.organization}
                 </span>
               </div>
               <p className="org-menu__heading">Appearance</p>

@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../auth/AuthContext'
+import { roleLabel } from '../../../auth/roles'
 
 /** The signed-in user, the active organization and every workspace they may switch to, for the shell chrome. */
 export function useOrganizerIdentity() {
@@ -10,6 +11,8 @@ export function useOrganizerIdentity() {
     name: session.user.full_name || session.user.email,
     email: session.user.email,
     role: session.context.role ?? 'organizer',
+    /** The role's name from the server's catalogue. */
+    roleName: roleLabel(session.context) || 'Organizer',
     organization: session.context.organization?.name ?? '',
     current: session.context.id,
     workspaces: session.contexts,

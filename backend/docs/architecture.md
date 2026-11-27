@@ -14,25 +14,25 @@ same internal layout, created from `platform_core/app_template/`.
   models.py      this module's tables only
   services.py    write operations (one transaction each) — public to other modules
   selectors.py   read operations (permission-scoped) — public to other modules
-  policies.py    "may this actor do X to Y?" rules for this module
-  events.py      the events this module publishes (versioned) — the contract with consumers
+  policies.py    this module's own permission helpers (decisions come from access)
+  events.py      the events this module publishes (versioned) — public: the contract with consumers
   api/           HTTP only: serializers, views, urls
   tests/
 ```
 
 **Boundary rule (enforced by `manage.py check`, so CI):** another module may import only a
-module's `services` and `selectors`. Never its models, API or anything else. `platform_core` may
+module's `services`, `selectors` and `events` (D-041). Never its models, API or anything else. `platform_core` may
 be imported by everyone and imports no module. Tests and migrations are exempt.
 
 ## Modules today and planned
 
 | Module | Phase | Track | Purpose |
 |---|---|---|---|
-| `platform_core` | P0–P1 ✅ | shared | Kernel: errors, IDs, versions, idempotency, paging, time, OpenAPI, boundaries, workspace context, tracker check |
+| `platform_core` | P0–P1 ✅ (+P3/P4 hooks) | shared | Kernel: errors, IDs, versions, idempotency, paging, time, OpenAPI, boundaries, workspace context, authorization hooks, event types, tracker check |
 | `accounts` | P2 ✅ | shared | Users, sign-in, sessions, the active workspace context |
-| `organizations` | P2 ✅ | A | Organizations, memberships, invitations, context resolution |
-| `access`, `audit` | P3 | A | Roles and permissions, policy engine; append-only audit trail |
-| `outbox`, `activity` | P4 | B | Transactional outbox and worker; permission-scoped activity feed |
+| `organizations` | P2 ✅ | A | Organizations, memberships, invitations, context resolution; first event publisher |
+| `access`, `audit` | P3 👀 | A | Roles and permissions as data, policy engine; append-only audit trail |
+| `outbox`, `activity` | P4 👀 | B | Transactional outbox and worker; permission-scoped activity feed |
 | `reference`, `competitions` | P5 | A | Sports, countries, regions; competitions, events, participation |
 | `scheduling`, `approvals` | P6 | A | Fixtures and schedule revisions; approval requests and decisions |
 | `notifications` | P7 | B | Notices, delivery attempts, acknowledgments |
@@ -41,13 +41,13 @@ be imported by everyone and imports no module. Tests and migrations are exempt.
 | `realtime` | P10 | B | Cache and server push |
 | `workspaces` | P5–P9 | page owner | Screen endpoints for the Organizer pages, one file per page; owns no tables |
 
-## How a write flows (from P3/P4 on)
+## How a write flows (P3/P4, in place now)
 
 ```
 HTTP request
   → accounts.middleware        who is this, and which workspace are they acting for? (P2)
   → <module>.api view          shape and types (serializer)
-  → <module>.services.<cmd>    business rules; access.policies decides (P3)
+  → <module>.services.<cmd>    business rules; access.selectors.can decides (P3)
        one transaction:  change rows  +  audit entry (P3)  +  outbox event (P4)
   → response
 outbox → worker → consumers   activity feed, notifications, work items, caches (P4, P7–P10)

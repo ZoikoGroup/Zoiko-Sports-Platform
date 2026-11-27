@@ -1,5 +1,14 @@
 """HTTP endpoints of the {{ app_name }} module: parse, call a service or selector, respond.
 
+Every view states its permission rule (system check platform_core.E002 fails the
+build otherwise):
+
+    permission_classes = [IsAuthenticated, HasWorkspaceContext, RequirePermission("thing.view")]
+
+Anonymous endpoints use platform_core.authorization.Public. A record the caller may
+not see answers 404 and a forbidden action 403: platform_core.authorization.deny().
+Lists start from access.selectors.scope_to_context().
+
 Document every operation with drf_spectacular's @extend_schema, reusing
 platform_core.openapi (error_responses, IDEMPOTENCY_KEY_PARAMETER).
 """

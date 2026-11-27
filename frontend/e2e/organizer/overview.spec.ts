@@ -43,7 +43,7 @@ test.describe('organizer login to dashboard', () => {
     await expect(page.getByRole('button', { name: 'Account: Olivia Organizer' })).toBeVisible()
     if (testInfo.project.name === 'desktop') {
       await expect(page.getByTestId('organizer-user-name')).toHaveText('Olivia Organizer')
-      await expect(page.getByText('Competition Director', { exact: true })).toBeVisible()
+      await expect(page.getByText('Competition director', { exact: true })).toBeVisible()
     }
 
     const nav = await openNavigation(page)

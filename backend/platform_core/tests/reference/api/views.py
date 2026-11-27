@@ -2,6 +2,7 @@ from uuid import UUID
 
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,6 +18,8 @@ from .serializers import ItemFilters, ItemSerializer, ItemUpdateSerializer
 
 
 class ItemListView(APIView):
+    # Every view states its rule (platform_core.E002); workspace actions use RequirePermission.
+    permission_classes = [IsAuthenticated]
     pagination_class = CursorPage
 
     @extend_schema(parameters=[ItemFilters], responses={200: ItemSerializer(many=True), **error_responses(400, 401)})
@@ -40,6 +43,8 @@ class ItemListView(APIView):
 
 
 class ItemDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def _item(self, request: Request, item_id: UUID):
         item = selectors.item_for(request.user, item_id)
         if item is None:
@@ -67,6 +72,8 @@ class ItemDetailView(APIView):
 
 class FailingView(APIView):
     """Raises an unexpected error, to test the 500 envelope."""
+
+    permission_classes = [IsAuthenticated]
 
     @extend_schema(responses={500: error_responses(500)[500]})
     def get(self, request: Request) -> Response:

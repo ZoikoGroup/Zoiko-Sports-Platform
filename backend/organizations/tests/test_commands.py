@@ -63,12 +63,14 @@ class OrganizationCommandTests(TestCase):
 
     def test_revoke_invitation_and_suspend_member(self):
         organization = services.create_organization(name="Club A", kind="club", verified=True)
-        invitation, _ = services.create_invitation(organization=organization, email="c@example.com", role="member")
+        invitation, _ = services.create_invitation(
+            organization=organization, email="c@example.com", role="club_coordinator"
+        )
         self.assertIn("revoked", run("revoke-invitation", str(invitation.public_id)))
         self.assertEqual(Invitation.objects.get().status, Invitation.Status.REVOKED)
 
         member = make_user("m@example.com")
-        services.grant_membership(user=member, organization=organization, role="member")
+        services.grant_membership(user=member, organization=organization, role="club_coordinator")
         run("remove-member", str(organization.public_id), "--email", "m@example.com", "--suspend")
         self.assertEqual(Membership.objects.get(user=member).status, Membership.Status.SUSPENDED)
 
