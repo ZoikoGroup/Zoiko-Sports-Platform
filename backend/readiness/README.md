@@ -54,8 +54,16 @@ The page's read, `GET /api/v1/organizer/venues/`, is a screen endpoint in `works
 
 ## Known gaps
 
-- Evidence files, storage and malware scanning (P12.8, GI3).
-- Venue-side endpoints (submit evidence) arrive with the venue workspace (P12.5); organizer
-  review endpoints when the page gets a review action.
-- The screen endpoint returns every record at once (pilot volume); add paging if a single
-  organizer exceeds a few hundred venue-event pairs.
+Each is a tracked work package with acceptance criteria in
+[roadmap/P12](../docs/roadmap/P12-remaining-modules.md):
+
+- **P12.9:** the queue drops only cancelled events (`visible_readiness()`); finished events and
+  cancelled competitions stay. No rate limit on update requests.
+- **P12.10:** `review_check()` has no endpoint; the organizer cannot accept or send back a check.
+- **P12.11:** a venue cannot see its own readiness, and `UpdateRequest` is read nowhere (the
+  message never reaches the venue).
+- **P12.12:** `open_readiness()` is called only by the demo seed; there is no checklist set-up.
+- **P12.13:** the screen response carries every checklist (about 1.9 KB per venue).
+- **P12.14:** overdue is computed at read time; no `readiness.check_overdue` event for P7/P8.
+- Evidence files, storage and malware scanning: P12.8 (GI3). Evidence submission by the venue:
+  P12.5.

@@ -9,8 +9,8 @@ Status: ⬜ Pending · 🔄 In progress · 👀 In review · ✅ Done · ⛔ Blo
 
 ## Overall
 
-- **Phase 1 (P0 to P12):** 38 of 79 work packages done (48%)
-- **Whole roadmap (P0 to P13):** 38 of 84 work packages done (45%)
+- **Phase 1 (P0 to P12):** 38 of 85 work packages done (45%)
+- **Whole roadmap (P0 to P13):** 38 of 90 work packages done (42%)
 
 ## Phases
 
@@ -28,7 +28,7 @@ Status: ⬜ Pending · 🔄 In progress · 👀 In review · ✅ Done · ⛔ Blo
 | P9 | [Overview analytics and search](roadmap/P09-overview-search.md) | ⬜ Pending | 0 / 3 | B | P8 | KPI definitions | Overview page, top-bar search |
 | P10 | [Live updates and performance](roadmap/P10-realtime-performance.md) | ⬜ Pending | 0 / 4 | B | P9 | Which events update live | Live page updates |
 | P11 | [Production hardening and release](roadmap/P11-production-readiness.md) | ⬜ Pending | 0 / 6 | A + B | P1–P10 | GI5 hosting, SLOs, D09 retention | Controlled live pilot (gates G3/G4) |
-| P12 | [Remaining Phase 1 modules](roadmap/P12-remaining-modules.md) | 🔄 In progress | 1 / 8 | A + B | P11 (or earlier on staging) | One per module | Remaining sidebar pages and workspaces |
+| P12 | [Remaining Phase 1 modules](roadmap/P12-remaining-modules.md) | 🔄 In progress | 1 / 14 | A + B | P11 (or earlier on staging) | One per module | Remaining sidebar pages and workspaces |
 | P13 | [Later-phase platform](roadmap/P13-later-platform.md) | ⬜ Pending | 0 / 5 | — | Each module's master specification | Per module | Platform beyond Phase 1 |
 
 ## Recently completed

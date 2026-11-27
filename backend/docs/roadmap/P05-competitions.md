@@ -46,6 +46,11 @@
 ### P5.4 Services
 - Each write is idempotent (`platform_core.idempotency`), version-checked (`platform_core.concurrency`), audited (P3.7) and emits an event (P4.1).
 - First editable resource: add `ETag`/`If-Match` support here (D-015).
+- **Already present (from P12.1, D-047):** `competitions.services.create_competition()` and
+  `schedule_event()` (audited, publishing `competition.created` / `event.scheduled`), plus the
+  `ensure_*` helpers the demo seed uses. Not present: edits, cancellation, participation
+  (invite/accept/revoke) and the HTTP layer with idempotency (P5.6).
+- **Unblocks:** P12.12 (readiness checklist set-up needs events created through the API).
 
 ### P5.5 Participation as the second gate
 - An organization without accepted participation gets 404 on the event and everything below it.
