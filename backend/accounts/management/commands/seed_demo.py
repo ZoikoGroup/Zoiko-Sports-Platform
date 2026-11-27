@@ -15,6 +15,7 @@ from django.contrib.auth import password_validation
 from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
 
+from accounts.management import demo_readiness
 from accounts.models import User
 from organizations.services import ensure_organization, grant_membership
 
@@ -70,5 +71,10 @@ class Command(BaseCommand):
             for org_key, role in memberships:
                 grant_membership(user=user, organization=orgs[org_key], role=role)
             self.stdout.write(f"  {email}")
+
+        # The golden event's competition and venue readiness (P12.1; D-047).
+        venues = demo_readiness.seed(orgs["organizer"], {orgs["venue"].name: orgs["venue"]})
+        if venues:
+            self.stdout.write(f"  Venue readiness set up: {', '.join(venues)}")
 
         self.stdout.write(self.style.SUCCESS("Demo accounts ready (password from ZS_DEMO_PASSWORD)."))

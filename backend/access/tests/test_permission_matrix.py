@@ -34,6 +34,8 @@ MATRIX: dict[str, list[tuple[str, str]]] = {
     "api/v1/invitations/preview/": [("post", "public")],
     "api/v1/invitations/accept/": [("post", "signed_in")],
     "api/v1/activity/": [("get", "activity.view")],
+    "api/v1/organizer/venues/": [("get", "readiness.view")],
+    "api/v1/venue-readiness/<uuid:readiness_id>/update-requests/": [("post", "readiness.request_update")],
     "api/v1/health/live/": [("get", "public")],
     "api/v1/health/ready/": [("get", "public")],
     "api/v1/schema/": [("get", "public")],
@@ -41,17 +43,21 @@ MATRIX: dict[str, list[tuple[str, str]]] = {
 
 # Routes that exist only in some configurations (the OpenAPI schema is served with DEBUG on).
 CONDITIONAL = {"api/v1/schema/"}
-SAMPLE_PATHS = {"<str:provider>": "google"}
-# Roles of the golden event that grant activity.view (access migration 0002).
-ACTIVITY_VIEWERS = {
-    "director",
-    "coordinator",
-    "officials",
-    "access_manager",
-    "venue_staff",
-    "club_a",
-    "club_b",
-    "club_c",
+SAMPLE_PATHS = {"<str:provider>": "google", "<uuid:readiness_id>": "00000000-0000-4000-8000-000000000000"}
+# Golden actors whose role grants each permission (access migration 0002, readiness migration 0002).
+HOLDERS = {
+    "activity.view": {
+        "director",
+        "coordinator",
+        "officials",
+        "access_manager",
+        "venue_staff",
+        "club_a",
+        "club_b",
+        "club_c",
+    },
+    "readiness.view": {"director", "coordinator"},
+    "readiness.request_update": {"director", "coordinator"},
 }
 
 
@@ -70,7 +76,7 @@ def expected_allowed(rule: str, actor: str) -> bool:
         return True
     if rule == "context":
         return actor != "undecided"
-    return actor in ACTIVITY_VIEWERS  # the only permission-gated endpoint so far
+    return actor in HOLDERS[rule]
 
 
 class PermissionMatrixTests(TestCase):

@@ -4284,3 +4284,688 @@
     animation: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Venues & Readiness
+   --------------------------------------------------------------------------- */
+.org-vr {
+  --vr-tab-active: #3a1c8a;
+  --vr-tab-active-ink: #ffffff;
+}
+
+:root[data-theme='dark'] .org-vr {
+  --vr-tab-active: #6a4ce0;
+}
+
+/* Wider stadium photo on large screens; below 1024px the shared hero rules take over (full width). */
+@media (min-width: 1024px) {
+  .org-vr .org-hero--balls .org-hero__photo {
+    width: 74%;
+  }
+}
+
+/* Four summary cards: tinted icon tile, coloured edge */
+.org-stats--four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.org-stat--green {
+  --tone: var(--tone-green);
+}
+
+.org-stat--red {
+  --tone: var(--tone-red);
+}
+
+.org-vr-stat {
+  gap: 20px;
+  padding: 12px 20px 12px 18px;
+  border-left: 4px solid var(--tone);
+  background: var(--org-surface);
+}
+
+.org-vr-stat__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--tone) 12%, var(--org-surface));
+  color: var(--tone);
+}
+
+/* Layout: queue and regions on the left; attention, activity and framework on the right */
+.org-vr__layout {
+  display: grid;
+  /* The side cards keep a readable width; the queue table gets the rest. */
+  grid-template-columns: minmax(0, 1fr) clamp(330px, 22vw, 380px);
+  gap: 18px;
+  align-items: start;
+}
+
+/* Long card titles ("Today's Venue Activity") keep one line; their link moves below when short of room. */
+.org-vr__side .org-card__head {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+.org-vr__side .org-card__title {
+  flex: 1 0 auto;
+}
+
+/* Laptop widths: the queue needs the full width for all seven columns; side cards go below. */
+@media (max-width: 1439px) {
+  .org-vr__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.org-vr__main,
+.org-vr__side {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+/* Readiness queue */
+.org-vr-queue {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.org-vr-queue .org-card__title:focus-visible {
+  outline: none;
+  border-radius: 6px;
+  box-shadow: var(--org-focus);
+}
+
+.org-vr-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 6px 18px 12px;
+}
+
+.org-vr-tab {
+  min-height: 38px;
+  padding: 0 18px;
+  border: 1px solid var(--org-border-strong);
+  border-radius: 9px;
+  background: var(--org-surface);
+  color: var(--org-ink-2);
+  font-size: 14.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.org-vr-tab:hover {
+  border-color: var(--vr-tab-active);
+  color: var(--org-ink);
+}
+
+.org-vr-tab[aria-pressed='true'] {
+  border-color: var(--vr-tab-active);
+  background: var(--vr-tab-active);
+  color: var(--vr-tab-active-ink);
+}
+
+.org-vr-tab__count {
+  font-weight: 500;
+}
+
+.org-vr-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(150px, 200px));
+  gap: 14px;
+  padding: 0 18px 14px;
+}
+
+.org-vr-queue__scroll {
+  overflow-x: auto;
+  padding: 0 18px 10px;
+}
+
+/* Fits its card: venue, event and place wrap; time, status and evidence stay on one line.
+   Narrower than that, the card scrolls sideways (tablet); phones get cards (below). */
+.org-vr-table {
+  min-width: 680px;
+}
+
+.org-vr-table thead th {
+  padding: 9px 10px;
+  border-bottom: 0;
+  background: var(--org-surface-2);
+  color: var(--org-ink-3);
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.org-vr-table thead th:first-child {
+  border-radius: 8px 0 0 8px;
+}
+
+.org-vr-table thead th:last-child {
+  border-radius: 0 8px 8px 0;
+  text-align: right;
+}
+
+.org-vr-table tbody td,
+.org-vr-table tbody th {
+  padding: 10px 8px;
+  font-size: 14px;
+}
+
+.org-vr-table .org-status {
+  white-space: nowrap;
+}
+
+.org-vr-venue {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.org-vr-tile {
+  --tone: var(--tone-blue);
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--tone) 13%, var(--org-surface));
+  color: var(--tone);
+}
+
+.org-vr-tile--ready {
+  --tone: var(--tone-green);
+}
+
+.org-vr-tile--pending-review {
+  --tone: var(--tone-orange);
+}
+
+.org-vr-tile--needs-attention {
+  --tone: var(--tone-red);
+}
+
+.org-vr-event {
+  max-width: 210px;
+}
+
+.org-vr-event strong,
+.org-vr-event span,
+.org-vr-when span {
+  display: block;
+  line-height: 1.3;
+}
+
+.org-vr-event span {
+  color: var(--org-ink-3);
+  font-size: 13px;
+}
+
+.org-vr-when {
+  white-space: nowrap;
+}
+
+.org-vr-when span + span {
+  color: var(--org-ink-2);
+}
+
+.org-vr-evidence {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--org-ink-2);
+  white-space: nowrap;
+}
+
+.org-vr-table .org-status {
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+.org-status--vr-ready {
+  background: var(--status-ready-bg);
+  color: var(--status-ready);
+}
+
+.org-status--vr-pending-review {
+  background: var(--status-preparing-bg);
+  color: var(--status-preparing);
+}
+
+.org-status--vr-needs-attention {
+  background: var(--pill-bg);
+  color: var(--pill-ink);
+}
+
+/* Needs attention */
+.org-vr-attention__list {
+  margin: 0;
+  padding: 0 14px 10px;
+  list-style: none;
+}
+
+.org-vr-attention__list li + li {
+  border-top: 1px solid var(--org-border);
+}
+
+.org-vr-attention__row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 64px;
+  padding: 8px 4px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--org-ink);
+  text-align: left;
+}
+
+button.org-vr-attention__row {
+  cursor: pointer;
+}
+
+button.org-vr-attention__row:hover {
+  background: var(--org-surface-2);
+}
+
+.org-vr-attention__icon {
+  --tone: var(--warning);
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--tone) 16%, var(--org-surface));
+  color: var(--tone);
+}
+
+.org-vr-attention__icon--high {
+  --tone: var(--critical);
+}
+
+.org-vr-attention__icon--low {
+  --tone: var(--tone-blue);
+}
+
+.org-vr-attention__text {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.org-vr-attention__text strong {
+  font-size: 15.5px;
+}
+
+.org-vr-attention__text span {
+  color: var(--org-ink-2);
+  font-size: 13.5px;
+}
+
+.org-vr-attention .org-priority {
+  flex: none;
+  min-width: 74px;
+}
+
+/* Today's activity */
+.org-vr-activity__list {
+  margin: 0;
+  padding: 2px 18px 12px;
+  list-style: none;
+}
+
+.org-vr-activity__list .org-list__row {
+  font-size: 14.5px;
+}
+
+.org-vr-activity__list .org-list__row + .org-list__row {
+  border-top: 1px solid var(--org-border);
+}
+
+.org-vr-activity__icon {
+  flex: none;
+  color: var(--org-ink-2);
+}
+
+.org-vr-activity__icon--completed {
+  color: var(--tone-green);
+}
+
+.org-vr-activity__icon--in-progress {
+  color: var(--tone-orange);
+}
+
+.org-vr-activity__open {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.org-vr-activity__open:hover strong {
+  color: var(--org-link);
+}
+
+/* Regional snapshot */
+.org-vr-regions__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  margin: 0;
+  padding: 2px 18px 16px;
+  list-style: none;
+}
+
+.org-vr-regions__list li + li {
+  border-left: 1px solid var(--org-border);
+}
+
+.org-vr-region {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 6px 16px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: var(--org-ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.org-vr-region:hover {
+  background: var(--org-surface-2);
+}
+
+.org-vr-region strong {
+  font-size: 15.5px;
+}
+
+.org-vr-region > span:first-of-type {
+  color: var(--org-ink-2);
+  font-size: 14px;
+}
+
+.org-vr-region__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.org-vr-region__pct {
+  flex: none;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.org-progress {
+  flex: 1;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--chip-bg);
+}
+
+.org-progress__fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--chart-good);
+}
+
+/* Readiness framework (process stages) */
+.org-vr-framework__intro {
+  margin: 0;
+  padding: 0 18px 12px;
+  color: var(--org-ink-3);
+  font-size: 14px;
+}
+
+.org-vr-framework__stages {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 22px;
+  margin: 0;
+  padding: 0 18px 18px;
+  list-style: none;
+}
+
+.org-vr-stage {
+  --tone: var(--tone-blue);
+  position: relative;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+  min-height: 88px;
+  padding: 10px 6px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--tone) 12%, var(--org-surface));
+  color: var(--tone);
+  font-size: 13.5px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.org-vr-stage span {
+  color: var(--org-ink);
+  line-height: 1.2;
+}
+
+.org-vr-stage + .org-vr-stage::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -15px;
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid var(--org-ink-3);
+  border-right: 2px solid var(--org-ink-3);
+  transform: translateY(-50%) rotate(45deg);
+}
+
+.org-vr-stage--violet {
+  --tone: var(--tone-violet);
+}
+
+.org-vr-stage--orange {
+  --tone: var(--tone-orange);
+}
+
+.org-vr-stage--green {
+  --tone: var(--tone-green);
+}
+
+/* Details drawer */
+.org-info--attention {
+  background: var(--pill-bg);
+  color: var(--pill-ink);
+}
+
+.org-vr-checks li {
+  align-items: center;
+}
+
+.org-vr-checks__icon {
+  flex: none;
+  color: var(--org-ink-3);
+}
+
+.org-vr-checks__icon--complete {
+  color: var(--tone-green);
+}
+
+.org-vr-checks__icon--pending {
+  color: var(--tone-orange);
+}
+
+.org-vr-checks__icon--attention {
+  color: var(--critical);
+}
+
+.org-status--check-complete {
+  background: var(--status-ready-bg);
+  color: var(--status-ready);
+}
+
+.org-status--check-pending {
+  background: var(--status-preparing-bg);
+  color: var(--status-preparing);
+}
+
+.org-status--check-attention {
+  background: var(--pill-bg);
+  color: var(--pill-ink);
+}
+
+.org-vr-request {
+  display: grid;
+  gap: 10px;
+}
+
+.org-vr-request__sent {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tone-green);
+  font-weight: 600;
+}
+
+@media (max-width: 1279px) {
+  .org-vr__layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .org-stats--four {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767px) {
+  .org-stats--four {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .org-vr-stat__icon {
+    width: 48px;
+    height: 48px;
+  }
+
+  .org-vr-tabs {
+    padding: 4px 14px 12px;
+  }
+
+  .org-vr-tab {
+    flex: 1 1 calc(50% - 10px);
+    padding: 0 10px;
+  }
+
+  .org-vr-filters {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0 14px 12px;
+  }
+
+  .org-vr-queue__scroll {
+    padding: 0 14px 10px;
+  }
+
+  /* Each venue becomes a card with its own layout (the shared table card layout is the
+     Competitions directory's, whose areas don't fit these columns). */
+  .org-vr-table {
+    min-width: 0;
+  }
+
+  .org-vr-table tbody tr {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'venue go'
+      'event event'
+      'place when'
+      'status evidence';
+    gap: 10px 12px;
+    padding: 14px 0;
+  }
+
+  .org-vr-table tbody tr > th {
+    grid-area: venue;
+    min-width: 0;
+  }
+
+  .org-vr-table tbody tr > td:nth-child(2) {
+    grid-area: event;
+    max-width: none;
+  }
+
+  .org-vr-table tbody tr > td:nth-child(3) {
+    grid-area: place;
+    min-width: 0;
+  }
+
+  .org-vr-table tbody tr > td:nth-child(4) {
+    grid-area: when;
+    justify-self: end;
+    text-align: right;
+  }
+
+  .org-vr-table tbody tr > td:nth-child(5) {
+    grid-area: status;
+    justify-self: start;
+  }
+
+  .org-vr-table tbody tr > td:nth-child(6) {
+    grid-area: evidence;
+    align-self: center;
+    justify-self: end;
+  }
+
+  .org-vr-table tbody tr > td:nth-child(7) {
+    grid-area: go;
+  }
+
+  .org-vr-regions__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 2px 10px 14px;
+  }
+
+  .org-vr-regions__list li:nth-child(odd) {
+    border-left: 0;
+  }
+
+  .org-vr-framework__stages {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .org-vr-stage:nth-child(3)::before {
+    display: none;
+  }
+}
+
+@media (max-width: 479px) {
+  .org-vr-regions__list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .org-vr-regions__list li + li {
+    border-top: 1px solid var(--org-border);
+    border-left: 0;
+  }
+}

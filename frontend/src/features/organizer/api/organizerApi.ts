@@ -1,5 +1,7 @@
+import { newIdempotencyKey } from '../../../api/client'
 import { call, type OperationFor } from '../../../api/resource'
 import { ORGANIZER_ENDPOINTS as API } from './endpoints'
+import { toVenuesData, type VenuesResponse } from './venuesMapping'
 import type {
   ActionCenterData,
   CompetitionsData,
@@ -10,6 +12,7 @@ import type {
   NewFixture,
   OrganizerOverview,
   PublishInput,
+  VenuesData,
 } from './types'
 
 /**
@@ -31,6 +34,8 @@ export const organizerApi = {
   actionCenter: (signal?: AbortSignal) => call<ActionCenterData>(API.actionCenter, undefined, { signal }),
   competitions: (signal?: AbortSignal) => call<CompetitionsData>(API.competitions, undefined, { signal }),
   fixtures: (signal?: AbortSignal) => call<FixturesData>(API.fixtures, undefined, { signal }),
+  venues: (signal?: AbortSignal): Promise<VenuesData> =>
+    call<VenuesResponse>(API.venues, undefined, { signal }).then(toVenuesData),
 
   createCompetition: (input: NewCompetition) => call<unknown>(API.createCompetition, input),
   createEvent: ({ competitionId, ...input }: NewCompetitionEvent) => call<unknown>(at(API.createEvent, competitionId), input),
@@ -42,4 +47,8 @@ export const organizerApi = {
     call<unknown>(at(API.requestFixtureApproval, fixtureId), { version }),
   publishFixtureChange: (fixtureId: string, input: PublishInput) => call<unknown>(at(API.publishFixtureChange, fixtureId), input),
   discardFixtureChange: (fixtureId: string) => call<unknown>(at(API.discardFixtureChange, fixtureId)),
+
+  /** Asks the venue to update its readiness (it appears in the venue's activity feed). One key per submission. */
+  requestReadinessUpdate: (readinessId: string, message: string) =>
+    call<unknown>(at(API.requestReadinessUpdate, readinessId), { message }, { headers: { 'Idempotency-Key': newIdempotencyKey() } }),
 }

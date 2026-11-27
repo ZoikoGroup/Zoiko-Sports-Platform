@@ -9,8 +9,8 @@ Status: ⬜ Pending · 🔄 In progress · 👀 In review · ✅ Done · ⛔ Blo
 
 ## Overall
 
-- **Phase 1 (P0 to P12):** 37 of 78 work packages done (47%)
-- **Whole roadmap (P0 to P13):** 37 of 83 work packages done (45%)
+- **Phase 1 (P0 to P12):** 38 of 79 work packages done (48%)
+- **Whole roadmap (P0 to P13):** 38 of 84 work packages done (45%)
 
 ## Phases
 
@@ -21,20 +21,21 @@ Status: ⬜ Pending · 🔄 In progress · 👀 In review · ✅ Done · ⛔ Blo
 | P2 | [Identity and organization context](roadmap/P02-identity.md) | ✅ Done | 6 / 6 | A | P1 | D-024 to D-032 | Workspace chooser, switching without sign-out, invitations |
 | P3 | [Permissions and audit trail](roadmap/P03-permissions-audit.md) | ✅ Done | 9 / 9 | A | P2 | D-039, D-042, D-043, D-045 (GP1 assumed) | Secures every later endpoint |
 | P4 | [Event backbone](roadmap/P04-event-backbone.md) | ✅ Done | 5 / 5 | B | P1 | D-040, D-041, D-044 | Recent Updates; reliable side effects for P5–P12 |
-| P5 | [Competitions and event participation](roadmap/P05-competitions.md) | ⬜ Pending | 0 / 7 | A | P3, P4 | GD3, K3 and 4 more | Competitions & Events page |
+| P5 | [Competitions and event participation](roadmap/P05-competitions.md) | 🔄 In progress | 0 / 7 | A | P3, P4 | GD3, K3 and 4 more | Competitions & Events page |
 | P6 | [Fixtures, schedule revisions and approvals](roadmap/P06-fixtures-approvals.md) | ⬜ Pending | 0 / 5 | A | P5 | K4, D08 and 4 more | Fixtures & Schedule page |
 | P7 | [Notifications and acknowledgments](roadmap/P07-notifications.md) | ⬜ Pending | 0 / 4 | B | P6 (core: P4 + P6 event formats, see D-035) | GI2, GB3, GB6 | Notifications bell |
 | P8 | [Work items: the Action Centre engine](roadmap/P08-action-centre.md) | ⬜ Pending | 0 / 4 | B | P5, P6, P7 | GB4 and 3 more | Action Centre page, sidebar badge |
 | P9 | [Overview analytics and search](roadmap/P09-overview-search.md) | ⬜ Pending | 0 / 3 | B | P8 | KPI definitions | Overview page, top-bar search |
 | P10 | [Live updates and performance](roadmap/P10-realtime-performance.md) | ⬜ Pending | 0 / 4 | B | P9 | Which events update live | Live page updates |
 | P11 | [Production hardening and release](roadmap/P11-production-readiness.md) | ⬜ Pending | 0 / 6 | A + B | P1–P10 | GI5 hosting, SLOs, D09 retention | Controlled live pilot (gates G3/G4) |
-| P12 | [Remaining Phase 1 modules](roadmap/P12-remaining-modules.md) | ⬜ Pending | 0 / 7 | A + B | P11 (or earlier on staging) | One per module | Remaining sidebar pages and workspaces |
+| P12 | [Remaining Phase 1 modules](roadmap/P12-remaining-modules.md) | 🔄 In progress | 1 / 8 | A + B | P11 (or earlier on staging) | One per module | Remaining sidebar pages and workspaces |
 | P13 | [Later-phase platform](roadmap/P13-later-platform.md) | ⬜ Pending | 0 / 5 | — | Each module's master specification | Per module | Platform beyond Phase 1 |
 
 ## Recently completed
 
 Newest first, from the phase files' progress logs.
 
+- 2026-11-27 · [P12](roadmap/P12-remaining-modules.md) · P12.1 · PR #7 · venue readiness module, screen endpoint, update requests;
 - 2026-11-26 · [P4](roadmap/P04-event-backbone.md) · P4.1, P4.5 · PR #5 · schema corrections (D-046): database CHECK constraints for values and states, redundant indexes removed, hous…
 - 2026-11-26 · [P4](roadmap/P04-event-backbone.md) · P4.1–P4.5 · PR #5 · outbox, worker, event registry and catalogue, operations commands, activity feed.
 - 2026-11-26 · [P3](roadmap/P03-permissions-audit.md) · P3.1, P3.7 · PR #5 · schema corrections (D-046): database CHECK constraints for values and states, redundant indexes removed, hous…
@@ -42,4 +43,3 @@ Newest first, from the phase files' progress logs.
 - 2026-11-26 · [P2](roadmap/P02-identity.md) · P2.1 · PR #5 · schema corrections (D-046): database CHECK constraints for values and states, redundant indexes removed, hous…
 - 2026-11-26 · [P2](roadmap/P02-identity.md) · P2.5 · Stage 0 · fixed a first-visit CSRF race: an invitation link opened in a fresh browser could be refused ("session expire…
 - 2026-11-26 · [P0](roadmap/P00-foundation.md) · P0.8 · Stage 0 · tracker enforced on pull requests (D-038): titles name their work package, code arrives with its tracker upda…
-- 2026-11-26 · [P0](roadmap/P00-foundation.md) · P0.8 · Stage 0 · decision log moved into `backend/docs/decisions/`;

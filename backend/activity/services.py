@@ -7,9 +7,12 @@ created twice for one event, so duplicated or replayed deliveries are harmless.
 
 from access.selectors import role_names
 from accounts.selectors import user_names
+from competitions.selectors import event_names
 from organizations import events as org_events
 from organizations.selectors import organization_names
 from outbox.services import DeliveredEvent
+from readiness import events as readiness_events
+from readiness.selectors import check_titles
 
 from .models import ActivityEntry
 
@@ -26,7 +29,22 @@ def _names(event: DeliveredEvent) -> tuple[str, str, str]:
     return person, organization, role
 
 
+def _readiness_summary(event: DeliveredEvent) -> str:
+    """Readiness events: the organizer acted on the venue's readiness (shown to the venue)."""
+    payload = event.payload
+    organizer = organization_names([payload["organizer_id"]]).get(payload["organizer_id"], "The organizer")
+    if event.type == "readiness.update_requested":
+        name = event_names([payload["event_id"]]).get(payload["event_id"])
+        return f"{organizer} asked for a readiness update" + (f" for {name}." if name else ".")
+    check = check_titles([payload["check_id"]]).get(payload["check_id"], "a readiness check")
+    if payload["state"] == "accepted":
+        return f"{organizer} accepted {check}."
+    return f"{organizer} requested changes to {check}."
+
+
 def _summary(event: DeliveredEvent) -> str:
+    if event.type.startswith("readiness."):
+        return _readiness_summary(event)
     person, organization, role = _names(event)
     payload = event.payload
     match event.type:
@@ -76,4 +94,6 @@ SUBSCRIPTIONS = (
     org_events.INVITATION_ACCEPTED,
     org_events.MEMBERSHIP_GRANTED,
     org_events.MEMBERSHIP_STATUS_CHANGED,
+    readiness_events.READINESS_UPDATE_REQUESTED,
+    readiness_events.READINESS_CHECK_REVIEWED,
 )

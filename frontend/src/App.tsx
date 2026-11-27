@@ -20,6 +20,7 @@ const ModulePage = lazy(() => import('./features/organizer').then((m) => ({ defa
 const ActionCenterPage = lazy(() => import('./features/organizer').then((m) => ({ default: m.ActionCenterPage })))
 const CompetitionsPage = lazy(() => import('./features/organizer').then((m) => ({ default: m.CompetitionsPage })))
 const FixturesPage = lazy(() => import('./features/organizer').then((m) => ({ default: m.FixturesPage })))
+const VenuesPage = lazy(() => import('./features/organizer').then((m) => ({ default: m.VenuesPage })))
 
 function Splash() {
   return (
@@ -117,6 +118,7 @@ export default function App() {
             <Route path="action-center" element={<ActionCenterPage />} />
             <Route path="competitions" element={<CompetitionsPage />} />
             <Route path="fixtures" element={<FixturesPage />} />
+            <Route path="venues" element={<VenuesPage />} />
             <Route path=":module" element={<ModulePage />} />
           </Route>
           <Route path="*" element={<Navigate to="/login" replace />} />

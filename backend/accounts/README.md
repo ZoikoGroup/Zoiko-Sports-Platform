@@ -51,14 +51,16 @@ act for an organization use `platform_core.workspace.HasWorkspaceContext`.
 
 ## Events, permissions, audit
 
-- **Events:** none yet; sign-in and switching events arrive with P4.
-- **Permissions:** public endpoints are throttled (`AUTH_THROTTLE_RATE`); `/me/*` needs a signed-in user. Role permissions arrive in P3.
-- **Audit:** sign-in, sign-out, failed sign-in and switching are audited in P3.7.
+- **Events:** none published. Sign-in and switching are security records, so they go to the audit trail rather than the event stream (D-042).
+- **Permissions:** public endpoints are throttled (`AUTH_THROTTLE_RATE`); `/me/*` needs a signed-in user. The session lists the active role's `permissions` (D-045).
+- **Audit:** `auth.sign_in`, `auth.sign_in_failed`, `auth.sign_out` (`signals.py`), `workspace.context_activated` / `context_ended`, `account.registered`, `account.email_verified`, `account.password_changed`.
 
 ## Management commands
 
-- `seed_demo`: fictional golden-event accounts ([golden-event.md](../docs/golden-event.md));
-  needs `ZS_DEMO_PASSWORD` and debug or `ZS_ALLOW_DEMO_SEED=true`.
+- `seed_demo`: fictional golden-event organizations and accounts ([golden-event.md](../docs/golden-event.md)),
+  plus Riverside's demo competition and venue readiness at five fictional venues
+  (`management/demo_readiness.py`, through the competitions and readiness services; D-047);
+  needs `ZS_DEMO_PASSWORD` and debug or `ZS_ALLOW_DEMO_SEED=true`. Re-running creates nothing twice.
 
 ## Tests
 
@@ -68,6 +70,5 @@ and the seed command. Context resolution, switching and revocation tests are in
 
 ## Known gaps
 
-- No audit trail yet (P3.7).
 - No SSO, MFA or passkeys: the identity provider is undecided (K10, GI1); the SSO button says
   it is not available.

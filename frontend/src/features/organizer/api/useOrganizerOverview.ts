@@ -16,3 +16,7 @@ export const useCompetitions = () =>
 /** Fixtures & Schedule data. */
 export const useFixtures = () =>
   useResource(organizerApi.fixtures, "We couldn't load your fixtures. Please try again.")
+
+/** Venues & Readiness data. */
+export const useVenues = () =>
+  useResource(organizerApi.venues, "We couldn't load venue readiness. Please try again.")

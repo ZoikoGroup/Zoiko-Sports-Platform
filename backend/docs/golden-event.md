@@ -8,7 +8,7 @@ tests against. All names are synthetic.
 | Organization | Kind | In the seed today | Role in the scenario |
 |---|---|---|---|
 | Riverside Invitational | Organizer | ✅ | Runs the competition |
-| Northfield Arena | Venue | ✅ | Hosts it; shares readiness checks |
+| Northfield Arena | Venue | ✅ | Hosts it; shares 14 of its 16 readiness checks (P12.1) |
 | Club A | Club | ✅ | Invited participant |
 | Club B | Club | ✅ (P3.8) | Invited participant |
 | Club C | Club | ✅ (P3.8) | **Not invited**: must see nothing, ever |
@@ -36,7 +36,7 @@ The demo seed (`backend/accounts/management/commands/seed_demo.py`, password fro
 | P6 | A kick-off moves from 12:15 to 12:25: proposed, approved, published as version 2; version 1 stays readable |
 | P7 | Clubs A and B are notified; delivered is not acknowledged; a club revoked after queueing gets nothing |
 | P8 | The approval and the outstanding acknowledgments appear in the Action Centre; totals equal lists |
-| P12.1 | Northfield's 16 readiness checks: 14 shared, 2 not shared |
+| P12.1 ✅ | Northfield's 16 readiness checks: 14 shared, 2 not shared; Riverside sees and counts only the 14 (`readiness/tests/test_readiness.py`) |
 | P12.2 | The turnstile incident on event day: opened, triaged, resolved |
 
 ## Rules for seed data
@@ -46,3 +46,6 @@ The demo seed (`backend/accounts/management/commands/seed_demo.py`, password fro
 - No real people, organizations or passwords; nothing in the seed is printed except email
   addresses.
 - See D-036 for why the seed is still a single command.
+- The seed also creates Riverside's competition at Northfield and four more fictional venues
+  (Harbour Point Stadium, Lakeside Park, Southern Cross Ground, Bayfront Arena) so the Venues &
+  Readiness page shows every status (`accounts/management/demo_readiness.py`, D-047).

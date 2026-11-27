@@ -30,7 +30,9 @@ outside the refused operation's transaction so it is kept.
 `account.email_verified`, `account.password_changed`, `organization.created` / `verified` /
 `suspended` / `reinstated`, `membership.granted` / `status_changed`, `invitation.created` /
 `revoked` / `accepted` / `accept_refused`, `access.permission_granted` / `revoked`,
-`outbox.replayed`.
+`outbox.replayed`, `competition.created`, `event.scheduled`, `readiness.opened`,
+`readiness.check_submitted`, `readiness.check_reviewed`, `readiness.update_requested`
+(an update request's message is free text and is never copied into the trail).
 
 ## Endpoints
 

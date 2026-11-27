@@ -29,7 +29,8 @@ Example entry: `{"id": "…", "occurred_at": "2026-11-26T10:15:00Z", "kind": "in
 ## Events
 
 - **Consumes** (consumer `activity.feed`): `organization.status_changed`, `invitation.created`,
-  `invitation.revoked`, `invitation.accepted`, `membership.granted`, `membership.status_changed`.
+  `invitation.revoked`, `invitation.accepted`, `membership.granted`, `membership.status_changed`,
+  `readiness.update_requested` and `readiness.check_reviewed` (lines in the venue's feed, P12.1).
 - Names are looked up when the event is processed; payloads carry IDs only.
 
 ## Tests

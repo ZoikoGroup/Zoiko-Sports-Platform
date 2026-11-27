@@ -42,8 +42,8 @@ interface HeroBannerProps {
   subtitle: string
   /** Small section label above the title. */
   eyebrow?: string
-  /** "athletes" (default), or a stadium with a cluster of balls or a single ball. */
-  art?: 'athletes' | 'balls' | 'ball'
+  /** "athletes" (default), or a stadium: on its own, with a cluster of balls or with a single ball. */
+  art?: 'athletes' | 'stadium' | 'balls' | 'ball'
   /** Call-to-action buttons. */
   children?: ReactNode
 }

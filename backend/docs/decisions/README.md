@@ -55,3 +55,4 @@ Status: ✅ Confirmed · 🟡 Assumed · 📝 Proposed · ♻ Superseded
 | D-044 | [Who sees the activity feed](D-044-activity-visibility.md) | 🟡 Assumed | P4 | 2026-11-26 |
 | D-045 | [The session tells the app what the active role may do](D-045-permissions-in-session.md) | ✅ Confirmed | P3 | 2026-11-26 |
 | D-046 | [The database enforces data integrity, not only the application](D-046-database-integrity-rules.md) | ✅ Confirmed | P2–P4 (schema corrections) | 2026-11-26 |
+| D-047 | [Venue readiness built ahead of P5 on provisional defaults](D-047-venue-readiness-defaults.md) | 🟡 Assumed | P12 (P12.1), P5 (P5.2 subset) | 2026-11-27 |

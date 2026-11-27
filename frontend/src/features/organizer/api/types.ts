@@ -351,3 +351,92 @@ export interface PublishInput {
   expectedVersion: number
   reason: string
 }
+
+/* ------------------------------------------------------- Venues & Readiness */
+
+/**
+ * A venue's readiness for one event, as the organizer sees it. Readiness checks,
+ * evidence and their review come from the venue readiness module (backend P12.1);
+ * the check states inside are the server's wording, pending the agreed list (K5).
+ */
+export type ReadinessStatus = 'ready' | 'pending-review' | 'needs-attention'
+
+export interface ReadinessCheck {
+  id: string
+  title: string
+  /** complete: accepted; pending: submitted or in progress; attention: blocked, reopened or overdue. */
+  state: 'complete' | 'pending' | 'attention'
+  /** The server's label for the state ("Submitted", "Reopened", …). */
+  label: string
+}
+
+export interface VenueReadiness {
+  /** The readiness record (one venue for one event). */
+  id: string
+  venueId: string
+  venue: string
+  event: string
+  competitionId: string
+  competition: string
+  city: string
+  /** ISO 3166-1 alpha-2 country code. */
+  country: string
+  region: RegionId
+  /** The event's IANA time zone; local times are shown in it. */
+  timeZone: string
+  startsAt: string
+  status: ReadinessStatus
+  /** Evidence items the venue has shared for this event. */
+  evidenceItems: number
+  /** Completed and total readiness checks, when the venue has a checklist. */
+  checks: { complete: number; total: number } | null
+  /** Why it needs attention (status needs-attention). */
+  issue?: string
+  /** The checklist, when the server sends it for the details panel. */
+  checkList?: ReadinessCheck[]
+}
+
+/** The four summary figures: organization totals from the server. */
+export interface VenueSummary {
+  totalVenues: number
+  ready: number
+  pendingReview: number
+  needsAttention: number
+}
+
+export interface VenueAttentionItem {
+  id: string
+  /** The readiness record it concerns (opens its details). */
+  readinessId: string | null
+  venue: string
+  detail: string
+  severity: 'high' | 'medium' | 'low'
+}
+
+export interface VenueActivityItem {
+  id: string
+  readinessId: string | null
+  venue: string
+  /** "Readiness check completed", "Evidence review in progress", … */
+  summary: string
+  kind: 'completed' | 'in-progress' | 'scheduled'
+  at: string
+  /** The venue's time zone (the time is shown as the venue sees it). */
+  timeZone: string
+}
+
+export interface RegionalReadiness {
+  region: RegionId
+  ready: number
+  total: number
+}
+
+export interface VenuesData {
+  generatedAt: string
+  summary: VenueSummary | null
+  venues: VenueReadiness[]
+  attention: VenueAttentionItem[]
+  /** Today's readiness activity across venues. */
+  activity: VenueActivityItem[]
+  regions: RegionalReadiness[]
+}

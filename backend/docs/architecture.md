@@ -31,15 +31,16 @@ be imported by everyone and imports no module. Tests and migrations are exempt.
 | `platform_core` | P0–P1 ✅ (+P3/P4 hooks) | shared | Kernel: errors, IDs, versions, idempotency, paging, time, OpenAPI, boundaries, workspace context, authorization hooks, event types, tracker check |
 | `accounts` | P2 ✅ | shared | Users, sign-in, sessions, the active workspace context |
 | `organizations` | P2 ✅ | A | Organizations, memberships, invitations, context resolution; first event publisher |
-| `access`, `audit` | P3 👀 | A | Roles and permissions as data, policy engine; append-only audit trail |
-| `outbox`, `activity` | P4 👀 | B | Transactional outbox and worker; permission-scoped activity feed |
-| `reference`, `competitions` | P5 | A | Sports, countries, regions; competitions, events, participation |
+| `access`, `audit` | P3 ✅ | A | Roles and permissions as data, policy engine; append-only audit trail |
+| `outbox`, `activity` | P4 ✅ | B | Transactional outbox and worker; permission-scoped activity feed |
+| `reference`, `competitions` | P5 (`competitions` started for P12.1, D-047) | A | Sports, countries, regions; competitions, events, participation |
 | `scheduling`, `approvals` | P6 | A | Fixtures and schedule revisions; approval requests and decisions |
 | `notifications` | P7 | B | Notices, delivery attempts, acknowledgments |
 | `workitems` | P8 | B | The Action Centre engine |
 | `analytics`, `search` | P9 | B | Overview counters; global search |
 | `realtime` | P10 | B | Cache and server push |
-| `workspaces` | P5–P9 | page owner | Screen endpoints for the Organizer pages, one file per page; owns no tables |
+| `readiness` | P12.1 ✅ | A | Venue readiness: checklists, evidence records, update requests |
+| `workspaces` | P12.1 (first page), P5–P9 | page owner | Screen endpoints for the Organizer pages, one file per page; owns no tables |
 
 ## How a write flows (P3/P4, in place now)
 
