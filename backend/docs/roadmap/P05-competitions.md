@@ -25,7 +25,7 @@
 | ID | Work package | Status | Owner | Depends on | PR / commit |
 |---|---|---|---|---|---|
 | P5.1 | Reference data: sports, countries, regions, time zones | ⬜ Pending | A | P3 | |
-| P5.2 | Competition, event and event-participation tables | 🔄 In progress | A | P5.1 | |
+| P5.2 | Competition, event and event-participation tables | 🔄 In progress | A | P5.1 | PR #7 (subset) |
 | P5.3 | Lifecycle transitions defined as data (allowed from/to pairs) | ⬜ Pending | A | P5.2 | |
 | P5.4 | Services: create competition, create event, invite/accept/revoke participation | ⬜ Pending | A | P5.3, P4 | |
 | P5.5 | Event participation added to the policy engine as the second gate | ⬜ Pending | A | P5.2, P3.2 | |
